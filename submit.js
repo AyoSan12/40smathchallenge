@@ -102,21 +102,46 @@ export default async function handler(req, res) {
 
   // ── 8. Timing sanity check ──────────────────────────────────────────────────
   // Even typing "6" + Enter takes at least 0.4s. 20 questions at that speed = 8s minimum.
-  const timeElapsed = 40 - TR;
+  const elapsedFromRemaining = 40 - TR;
   const MIN_PER_ANSWERED = 0.4; // seconds — very generous floor
-  if (answered > 0 && timeElapsed < answered * MIN_PER_ANSWERED) {
-    console.warn(`[CHEAT] ${username} answered ${answered} in ${timeElapsed.toFixed(2)}s`);
+  if (answered > 0 && elapsedFromRemaining < answered * MIN_PER_ANSWERED) {
+    console.warn(`[CHEAT] ${username} answered ${answered} in ${elapsedFromRemaining.toFixed(2)}s`);
     return res.status(400).json({ error: 'Timing anomaly detected' });
   }
 
-  // ── 9. Compute final score server-side ──────────────────────────────────────
-  const MULT = { easy: 1.0, normal: 1.5, hard: 2.0, human_calculator: 3.0 }[difficulty];
+  // ── 9. Compute final score server-side with aggressive time bonuses ─────────
+  // 1. Definisikan Parameter Level Baru
+  const multipliers = {
+    easy: 1.0,
+    normal: 2.0,
+    hard: 4.0,
+    human_calculator: 8.0
+  };
+  const timeBonuses = {
+    easy: 10,
+    normal: 25,
+    hard: 50,
+    human_calculator: 100
+  };
+  
+  // 2. Hitung Skor Mentah & Penalti
   const timeRem = Math.round(TR);
-  const base = correct * 100;
-  const bonus = correct * timeRem * 2;
-  const penalty = wrong * 20;
-  const finalScore = Math.round(Math.max(0, base + bonus - penalty) * MULT);
-
+  let baseScore = correct * 100;
+  let penalty = wrong * 50; // Hukuman lebih berat (-50)
+  
+  // 3. Hitung Bonus Waktu (Hanya jika ada jawaban benar)
+  let timeBonus = 0;
+  if (correct > 0) {
+    timeBonus = timeRem * timeBonuses[difficulty];
+  }
+  
+  // 4. Kalkulasi Final
+  const multiplier = multipliers[difficulty] || 1.0;
+  let finalScore = Math.floor((baseScore - penalty + timeBonus) * multiplier);
+  
+  // Pastikan skor tidak negatif
+  if (finalScore < 0) finalScore = 0;
+  
   if (finalScore === 0) {
     return res.status(200).json({ score: 0, submitted: false });
   }
