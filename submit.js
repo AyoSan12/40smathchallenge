@@ -20,6 +20,20 @@ export default async function handler(req, res) {
 
   const { username, difficulty, questions, userAnswers, timeRemaining, sessionToken, startTime } = body;
 
+  // ── Validasi Waktu Anti-Bot ─────────────────────────────────────────────────
+  const now = Date.now();
+  const timeElapsed = (now - startTime) / 1000; // hitung dalam detik
+  // LOGIKA ANTI-BOT:
+  // Manusia butuh minimal ~0.4 detik per soal untuk baca + klik/ketik.
+  // Kalau 20 soal dijawab kurang dari 8 detik (0.4s x 20), itu mencurigakan.
+  const MIN_HUMAN_TIME = 8; 
+  if (timeElapsed < MIN_HUMAN_TIME) {
+    console.warn(`[BOT DETECTED] ${username} completed quiz in ${timeElapsed.toFixed(2)}s (too fast!)`);
+    return res.status(403).json({ 
+      error: "Waduuuh, kok cepet banget? Kamu manusia atau kalkulator? Skor ditolak ya!" 
+    });
+  }
+
   // ── 1. Validate username ────────────────────────────────────────────────────
   if (!username || typeof username !== 'string') return res.status(400).json({ error: 'No username' });
   if (!/^[a-z0-9_]{2,20}$/.test(username)) return res.status(400).json({ error: 'Invalid username format' });
@@ -27,6 +41,17 @@ export default async function handler(req, res) {
   const BLOCKED_PATTERNS = ['hacker', 'cheat', 'spammer', 'fakebot', 'injector'];
   if (BLOCKED_PATTERNS.some(p => username.includes(p))) {
     return res.status(400).json({ error: 'Username not allowed' });
+  }
+
+  // ── Validasi startTime ──────────────────────────────────────────────────────
+  if (!startTime || typeof startTime !== 'number') {
+    return res.status(400).json({ error: 'Start time is required and must be a number' });
+  }
+  if (startTime > now) {
+    return res.status(400).json({ error: 'Start time cannot be in the future' });
+  }
+  if (now - startTime > 60000) { // Max 60 seconds for quiz
+    return res.status(400).json({ error: 'Quiz took too long (max 60 seconds)' });
   }
 
   // ── 2. Validate difficulty ──────────────────────────────────────────────────
