@@ -1110,20 +1110,19 @@ const state = {
 
 // ======================== SUPABASE LEADERBOARD ========================
 async function fetchLeaderboard() {
-  try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/scores?select=username,score,correct,difficulty&order=score.desc&limit=200`,
-      { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
-    );
-    if (!res.ok) return null;
-    const rows = await res.json();
-    const board = { easy: [], normal: [], hard: [], human_calculator: [] };
-    for (const diff of Object.keys(board)) {
-      board[diff] = rows.filter(r => r.difficulty === diff).slice(0, 10);
-    }
-    return board;
-  } catch { return null; }
-}
+    try {
+      const diffs = ['easy', 'normal', 'hard', 'human_calculator'];
+      const board = { easy: [], normal: [], hard: [], human_calculator: [] };
+      await Promise.all(diffs.map(async (diff) => {
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/scores?select=username,score,correct,difficulty&difficulty=eq.${diff}&order=score.desc&limit=10`,
+          { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
+        );
+        if (res.ok) board[diff] = await res.json();
+      }));
+      return board;
+    } catch { return null; }
+  }
 
 async function submitScore(entry, difficulty) {
   try {
