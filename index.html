@@ -1103,9 +1103,9 @@ const state = {
   activeTab: 'easy',
 };
 
-// ======================== SUPABASE CONFIG ========================
-// 👇 Isi dengan nilai dari Supabase project kamu
-const SUPABASE_URL = 'https://nsstfsmbdgfatwhzcijx.supabase.co';
+// ======================== SUPABASE CONFIG (read-only, leaderboard display) ========================
+  // NOTE: Anon key hanya untuk READ leaderboard. Score submission lewat /api/submit (server-side).
+  const SUPABASE_URL = 'https://nsstfsmbdgfatwhzcijx.supabase.co';
   const SUPABASE_ANON_KEY = 'sb_publishable_ovrT1TrorqmgmPvHRSfLFA_sJ84lMF1';
 
 // ======================== SUPABASE LEADERBOARD ========================
