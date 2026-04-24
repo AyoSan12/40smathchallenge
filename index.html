@@ -1,0 +1,1642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>40s Math Challenge</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --card: #1a1a26;
+    --border: #2a2a40;
+    --accent: #f0e040;
+    --accent2: #40e0f0;
+    --accent3: #f04070;
+    --text: #e8e8f0;
+    --muted: #6868a0;
+    --green: #40f070;
+    --red: #f04070;
+    --orange: #f09040;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Animated grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(240,224,64,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(240,224,64,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(ellipse at 30% 20%, rgba(64,224,240,0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 70% 80%, rgba(240,64,112,0.05) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(240,224,64,0.04) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+    animation: bgPulse 12s ease-in-out infinite alternate;
+  }
+
+  @keyframes bgPulse {
+    0% { transform: scale(1) rotate(0deg); opacity: 0.6; }
+    100% { transform: scale(1.05) rotate(1deg); opacity: 1; }
+  }
+
+  .screen {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 40px;
+  }
+  .screen.active { display: flex; }
+
+  /* ======================== SCREEN 1 - HOME ======================== */
+  #screen-home {
+    justify-content: flex-start;
+    gap: 0;
+  }
+
+  .home-header {
+    text-align: center;
+    padding: 48px 0 32px;
+    width: 100%;
+  }
+
+
+  .home-title {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: clamp(56px, 12vw, 120px);
+    line-height: 0.9;
+    letter-spacing: -1px;
+    color: var(--text);
+    text-shadow: 0 0 60px rgba(240,224,64,0.2);
+  }
+
+  .home-title span {
+    color: var(--accent);
+    display: block;
+    text-shadow: 0 0 40px rgba(240,224,64,0.5), 0 0 80px rgba(240,224,64,0.2);
+  }
+
+  .home-subtitle {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 16px;
+    letter-spacing: 2px;
+  }
+
+
+  .home-form {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 32px 0 24px;
+  }
+
+  .form-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  .input-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--card);
+    transition: border-color 0.2s;
+  }
+
+  .input-row:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(240,224,64,0.1);
+  }
+
+  .input-prefix {
+    padding: 14px 12px 14px 16px;
+    color: var(--muted);
+    font-size: 14px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  #username-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--accent);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 16px;
+    padding: 14px 16px 14px 4px;
+    caret-color: var(--accent);
+  }
+
+  #username-input::placeholder { color: var(--border); }
+
+  .input-hint {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 8px;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .btn-start {
+    width: 100%;
+    padding: 18px;
+    background: var(--accent);
+    color: #0a0a0f;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: 22px;
+    letter-spacing: 3px;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-start::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.1);
+    transform: translateX(-100%);
+    transition: transform 0.3s;
+  }
+
+  .btn-start:hover::before { transform: translateX(100%); }
+  .btn-start:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(240,224,64,0.4); }
+  .btn-start:active { transform: translateY(0); }
+  .btn-start:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  /* Leaderboard on home */
+  .leaderboard-section {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  .leaderboard-section h3 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .leaderboard-section h3::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .tab-bar {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    background: var(--card);
+    border-radius: 8px;
+    padding: 4px;
+    border: 1px solid var(--border);
+  }
+
+  .tab-btn {
+    flex: 1;
+    padding: 8px 4px;
+    background: transparent;
+    border: none;
+    border-radius: 5px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 9px;
+    color: var(--muted);
+    cursor: pointer;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: all 0.15s;
+  }
+
+  .tab-btn.active {
+    background: var(--accent);
+    color: #0a0a0f;
+    font-weight: 700;
+  }
+
+  .leaderboard-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .lb-row {
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
+    background: var(--card);
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    gap: 12px;
+    font-size: 13px;
+  }
+
+  .lb-rank {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: 18px;
+    color: var(--muted);
+    width: 24px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .lb-row:nth-child(1) .lb-rank { color: #ffd700; }
+  .lb-row:nth-child(2) .lb-rank { color: #c0c0c0; }
+  .lb-row:nth-child(3) .lb-rank { color: #cd7f32; }
+
+  .lb-name {
+    flex: 1;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px;
+    color: var(--accent2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .lb-stats {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 10px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .lb-score {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: 20px;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+
+  .lb-empty {
+    text-align: center;
+    padding: 24px;
+    color: var(--muted);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+  }
+
+  /* ======================== SCREEN 2 - DIFFICULTY ======================== */
+  #screen-difficulty {
+    justify-content: center;
+    gap: 0;
+  }
+
+  .diff-header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  .diff-header h2 {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: 48px;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .diff-header p {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 8px;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .diff-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    width: 100%;
+    max-width: 480px;
+  }
+
+  .diff-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--card);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .diff-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px; height: 100%;
+    background: var(--card-accent, var(--accent));
+    opacity: 0.7;
+    transition: opacity 0.2s;
+  }
+
+  .diff-card:hover {
+    border-color: var(--card-accent, var(--accent));
+    transform: translateX(4px);
+    box-shadow: -4px 0 24px rgba(0,0,0,0.3);
+  }
+
+  .diff-card:hover::before { opacity: 1; width: 6px; }
+
+  .diff-card[data-diff="easy"] { --card-accent: var(--green); }
+  .diff-card[data-diff="normal"] { --card-accent: var(--accent2); }
+  .diff-card[data-diff="hard"] { --card-accent: var(--orange); }
+  .diff-card[data-diff="human_calculator"] { --card-accent: var(--accent3); }
+
+  .diff-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .diff-name {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: 26px;
+    letter-spacing: 1px;
+    color: var(--card-accent, var(--accent));
+  }
+
+  .diff-badge {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 9px;
+    letter-spacing: 2px;
+    padding: 4px 10px;
+    border-radius: 100px;
+    border: 1px solid;
+    text-transform: uppercase;
+  }
+
+  .diff-badge.badge-green { color: var(--green); border-color: rgba(64,240,112,0.3); background: rgba(64,240,112,0.05); }
+  .diff-badge.badge-blue { color: var(--accent2); border-color: rgba(64,224,240,0.3); background: rgba(64,224,240,0.05); }
+  .diff-badge.badge-orange { color: var(--orange); border-color: rgba(240,144,64,0.3); background: rgba(240,144,64,0.05); }
+  .diff-badge.badge-red { color: var(--accent3); border-color: rgba(240,64,112,0.3); background: rgba(240,64,112,0.05); }
+
+  .diff-desc {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .diff-meta {
+    display: flex;
+    gap: 16px;
+    margin-top: 12px;
+  }
+
+  .diff-meta-item {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .diff-meta-item strong {
+    color: var(--text);
+    display: block;
+    font-size: 13px;
+  }
+
+  .back-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    margin-top: 24px;
+    transition: all 0.2s;
+  }
+  .back-btn:hover { border-color: var(--muted); color: var(--text); }
+
+  /* ======================== SCREEN 3 - QUIZ ======================== */
+  #screen-quiz {
+    justify-content: flex-start;
+    padding: 0;
+  }
+
+  .quiz-topbar {
+    width: 100%;
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    flex-shrink: 0;
+  }
+
+  .quiz-progress-text {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .quiz-progress-text span { color: var(--text); }
+
+  .quiz-diff-label {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: 18px;
+    letter-spacing: 2px;
+    color: var(--muted);
+  }
+
+  .timer-display {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: 32px;
+    color: var(--accent);
+    min-width: 48px;
+    text-align: center;
+    transition: color 0.3s;
+  }
+
+  .timer-display.yellow { color: var(--orange); }
+  .timer-display.red {
+    color: var(--accent3);
+    animation: timerPulse 0.5s ease-in-out infinite alternate;
+  }
+
+  @keyframes timerPulse {
+    0% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0.6; transform: scale(0.95); }
+  }
+
+  .timer-bar-container {
+    width: 100%;
+    height: 4px;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+
+  .timer-bar {
+    height: 100%;
+    background: var(--accent);
+    width: 100%;
+    transition: width 0.1s linear, background-color 0.5s;
+  }
+
+  .timer-bar.yellow { background: var(--orange); }
+  .timer-bar.red { background: var(--accent3); }
+
+  .quiz-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+    width: 100%;
+    gap: 40px;
+  }
+
+  .question-display {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: clamp(56px, 15vw, 96px);
+    color: var(--text);
+    text-align: center;
+    letter-spacing: 2px;
+    line-height: 1;
+    text-shadow: 0 0 40px rgba(240,224,64,0.1);
+    animation: questionIn 0.15s ease-out;
+  }
+
+  @keyframes questionIn {
+    from { opacity: 0; transform: translateY(8px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .question-display .equals {
+    color: var(--muted);
+    font-size: 0.6em;
+  }
+
+  .answer-input-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 300px;
+  }
+
+  #answer-input {
+    width: 100%;
+    text-align: center;
+    background: var(--card);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    color: var(--accent);
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: 48px;
+    padding: 20px;
+    outline: none;
+    transition: border-color 0.2s;
+    letter-spacing: 4px;
+    caret-color: var(--accent);
+  }
+
+  #answer-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px rgba(240,224,64,0.1);
+  }
+
+  .quiz-hint {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-align: center;
+  }
+
+  /* Countdown overlay */
+  #countdown-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+  }
+
+  .countdown-text {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: clamp(80px, 30vw, 200px);
+    color: var(--accent);
+    text-shadow: 0 0 80px rgba(240,224,64,0.5);
+    animation: countPulse 0.8s ease-out;
+    line-height: 1;
+  }
+
+  @keyframes countPulse {
+    0% { transform: scale(1.4); opacity: 0; }
+    60% { transform: scale(0.95); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  .countdown-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px;
+    color: var(--muted);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+  }
+
+  /* Cheat warning overlay */
+  #cheat-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,10,15,0.95);
+    z-index: 200;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+  }
+
+  #cheat-overlay.show { display: flex; }
+
+  .cheat-warning {
+    border: 2px solid var(--accent3);
+    border-radius: 12px;
+    padding: 40px;
+    text-align: center;
+    max-width: 400px;
+    background: var(--card);
+  }
+
+  .cheat-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  .cheat-warning h2 {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: 36px;
+    color: var(--accent3);
+    margin-bottom: 12px;
+  }
+
+  .cheat-warning p {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.6;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .btn-continue-cheat {
+    background: var(--accent3);
+    color: white;
+    border: none;
+    padding: 14px 32px;
+    border-radius: 8px;
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: 20px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: all 0.2s;
+  }
+  .btn-continue-cheat:hover { opacity: 0.85; }
+
+  /* ======================== SCREEN 4 - RESULTS ======================== */
+  #screen-results {
+    gap: 0;
+    padding: 24px 16px 60px;
+  }
+
+  .results-header {
+    text-align: center;
+    padding: 24px 0 32px;
+    width: 100%;
+  }
+
+  .results-rank-msg {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: clamp(28px, 6vw, 42px);
+    line-height: 1.2;
+    margin-bottom: 16px;
+  }
+
+  .results-rank-msg.gold { color: #ffd700; text-shadow: 0 0 30px rgba(255,215,0,0.4); }
+  .results-rank-msg.silver { color: #c0c0c0; }
+  .results-rank-msg.bronze { color: #cd7f32; }
+  .results-rank-msg.top10 { color: var(--accent2); }
+  .results-rank-msg.normal-r { color: var(--text); }
+  .results-rank-msg.cheated { color: var(--accent3); }
+  .results-rank-msg.impressive { color: var(--orange); }
+
+  .score-breakdown {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto 24px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .score-breakdown-title {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .score-rows {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .score-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+  }
+
+  .score-row .label { color: var(--muted); font-family: 'Space Grotesk', sans-serif; font-size: 11px; }
+  .score-row .value { font-family: 'Space Grotesk', sans-serif; color: var(--text); }
+  .score-row .value.green { color: var(--green); }
+  .score-row .value.red { color: var(--accent3); }
+
+  .score-row.total {
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+    margin-top: 4px;
+  }
+
+  .score-row.total .label {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: 20px;
+    letter-spacing: 2px;
+    color: var(--text);
+  }
+
+  .score-row.total .value {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: 36px;
+    color: var(--accent);
+    text-shadow: 0 0 20px rgba(240,224,64,0.3);
+  }
+
+  .review-table-wrap {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto 24px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .review-table-title {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+    background: var(--card);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .review-stats {
+    display: flex;
+    gap: 12px;
+  }
+
+  .review-stat {
+    font-size: 11px;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .review-stat .c { color: var(--green); }
+  .review-stat .w { color: var(--accent3); }
+
+  .review-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  .review-table th {
+    padding: 10px 12px;
+    text-align: left;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+  }
+
+  .review-table td {
+    padding: 9px 12px;
+    border-bottom: 1px solid rgba(42,42,64,0.5);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+  }
+
+  .review-table tr:last-child td { border-bottom: none; }
+  .review-table tr:nth-child(even) td { background: rgba(26,26,38,0.5); }
+  .review-table td:first-child { color: var(--muted); font-size: 10px; }
+  .review-table .q-col { color: var(--text); }
+  .review-table .your-col { color: var(--accent2); }
+  .review-table .ans-col { color: var(--muted); }
+  .review-table .result-col { font-size: 14px; text-align: center; }
+  .review-table td.skipped { color: var(--muted); font-style: italic; font-size: 10px; }
+
+  .results-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  .btn-primary {
+    width: 100%;
+    padding: 16px;
+    background: var(--accent);
+    color: #0a0a0f;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: 20px;
+    letter-spacing: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(240,224,64,0.3); }
+
+  .btn-secondary {
+    width: 100%;
+    padding: 14px;
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+
+  .btn-secondary:hover { border-color: var(--text); }
+
+
+
+  /* Toast */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 24px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px;
+    color: var(--text);
+    z-index: 500;
+    transition: transform 0.3s ease;
+    white-space: nowrap;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+
+
+
+  /* Responsive */
+  @media (min-width: 600px) {
+    .diff-grid { gap: 16px; }
+    .diff-card { padding: 24px 28px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ======================== SCREEN 1: HOME ======================== -->
+<div id="screen-home" class="screen active">
+  <div class="home-header">
+    <div class="home-title">
+      40s<span>Math</span>Challenge
+    </div>
+    <div class="home-subtitle">20 questions · 40 seconds · no mercy</div>
+  </div>
+
+  <div class="home-form">
+    <label class="form-label" for="username-input">Your Username</label>
+    <div class="input-row">
+      <span class="input-prefix">Hello, I'm</span>
+      <input type="text" id="username-input" placeholder="enter_username" maxlength="20" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    </div>
+    <div class="input-hint">lowercase · letters/numbers/underscore · 2–20 chars</div>
+    <button class="btn-start" id="btn-start" disabled>START CHALLENGE →</button>
+  </div>
+
+  <div class="leaderboard-section">
+    <h3>Leaderboard</h3>
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="easy">Easy</button>
+      <button class="tab-btn" data-tab="normal">Normal</button>
+      <button class="tab-btn" data-tab="hard">Hard</button>
+      <button class="tab-btn" data-tab="human_calculator">HC</button>
+    </div>
+    <div class="leaderboard-list" id="leaderboard-list">
+      <div class="lb-empty">loading scores...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================== SCREEN 2: DIFFICULTY ======================== -->
+<div id="screen-difficulty" class="screen">
+  <div class="diff-header">
+    <h2>PICK YOUR POISON</h2>
+    <p id="diff-greeting">Ready, player?</p>
+  </div>
+
+  <div class="diff-grid">
+    <div class="diff-card" data-diff="easy">
+      <div class="diff-top">
+        <div class="diff-name">EASY</div>
+        <div class="diff-badge badge-green">everyone finishes</div>
+      </div>
+      <div class="diff-desc">Small numbers, big confidence. Perfect warm-up.</div>
+    </div>
+
+    <div class="diff-card" data-diff="normal">
+      <div class="diff-top">
+        <div class="diff-name">NORMAL</div>
+        <div class="diff-badge badge-blue">standard challenge</div>
+      </div>
+      <div class="diff-desc">Classic multiplication tables. How many can you nail in 40 seconds?</div>
+    </div>
+
+    <div class="diff-card" data-diff="hard">
+      <div class="diff-top">
+        <div class="diff-name">HARD</div>
+        <div class="diff-badge badge-orange">most can't finish</div>
+      </div>
+      <div class="diff-desc">Bigger numbers, no ×10 shortcuts. 10–12 correct is already great.</div>
+    </div>
+
+    <div class="diff-card" data-diff="human_calculator">
+      <div class="diff-top">
+        <div class="diff-name">HUMAN CALCULATOR</div>
+        <div class="diff-badge badge-red">show-off mode</div>
+      </div>
+      <div class="diff-desc">2-digit multiplication. Almost nobody finishes. 6–8 correct = elite.</div>
+    </div>
+  </div>
+
+  <button class="back-btn" id="diff-back-btn">← BACK</button>
+</div>
+
+<!-- ======================== SCREEN 3: QUIZ ======================== -->
+<div id="screen-quiz" class="screen">
+  <div class="quiz-topbar">
+    <div class="quiz-progress-text">Q <span id="q-current">1</span> / <span id="q-total">20</span></div>
+    <div class="quiz-diff-label" id="quiz-diff-label">NORMAL</div>
+    <div class="timer-display" id="timer-display">40</div>
+  </div>
+  <div class="timer-bar-container">
+    <div class="timer-bar" id="timer-bar"></div>
+  </div>
+
+  <div class="quiz-main">
+    <div class="question-display" id="question-display">
+      7 × 9 <span class="equals">=</span> ?
+    </div>
+    <div class="answer-input-wrap">
+      <input type="text" id="answer-input" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="?">
+    </div>
+    <div class="quiz-hint">press ENTER to submit · leave blank to skip</div>
+  </div>
+</div>
+
+<!-- ======================== SCREEN 4: RESULTS ======================== -->
+<div id="screen-results" class="screen">
+  <div class="results-header">
+    <div class="results-rank-msg" id="rank-msg">Great effort!</div>
+  </div>
+
+  <div class="score-breakdown" id="score-breakdown">
+    <div class="score-breakdown-title">Score Breakdown</div>
+    <div class="score-rows" id="score-rows"></div>
+  </div>
+
+  <div class="review-table-wrap">
+    <div class="review-table-title">
+      <span>Question Review</span>
+      <div class="review-stats">
+        <span class="review-stat"><span class="c" id="res-correct">0</span> correct</span>
+        <span class="review-stat"><span class="w" id="res-wrong">0</span> wrong</span>
+      </div>
+    </div>
+    <table class="review-table" id="review-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Question</th>
+          <th>Your Answer</th>
+          <th>Answer</th>
+          <th>✓</th>
+        </tr>
+      </thead>
+      <tbody id="review-tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="results-btns">
+    <button class="btn-primary" id="btn-play-again">PLAY AGAIN</button>
+    <button class="btn-secondary" id="btn-change-player">Change Player</button>
+    <button class="btn-secondary" id="btn-view-lb">View Leaderboard</button>
+  </div>
+</div>
+
+<!-- ======================== COUNTDOWN OVERLAY ======================== -->
+<div id="countdown-overlay" style="display:none;">
+  <div class="countdown-label">Get Ready!</div>
+  <div class="countdown-text" id="countdown-num">3</div>
+</div>
+
+<!-- ======================== CHEAT OVERLAY ======================== -->
+<div id="cheat-overlay">
+  <div class="cheat-warning">
+    <span class="cheat-icon">⚠️</span>
+    <h2 id="cheat-title">WARNING</h2>
+    <p id="cheat-msg">Tab switching detected! This is your first warning. Do it again and your score will be voided.</p>
+    <button class="btn-continue-cheat" id="cheat-continue-btn">UNDERSTOOD</button>
+  </div>
+</div>
+
+<!-- ======================== TOAST ======================== -->
+<div id="toast"></div>
+
+<script>
+// ======================== STATE ========================
+const state = {
+  username: '',
+  difficulty: '',
+  questions: [],
+  answers: [],
+  sessionToken: '',
+  focusLostCount: 0,
+  cheated: false,
+  quizActive: false,
+  timerInterval: null,
+  sessionStartTime: 0,
+  timeRemaining: 40,
+  currentQ: 0,
+  leaderboard: { easy: [], normal: [], hard: [], human_calculator: [] },
+  activeTab: 'easy',
+};
+
+// ======================== SUPABASE CONFIG ========================
+// 👇 Isi dengan nilai dari Supabase project kamu
+const SUPABASE_URL = 'https://nsstfsmbdgfatwhzcijx.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_ovrT1TrorqmgmPvHRSfLFA_sJ84lMF1';
+
+// ======================== SUPABASE LEADERBOARD ========================
+async function fetchLeaderboard() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/scores?select=username,score,correct,difficulty&order=score.desc&limit=200`,
+      { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
+    );
+    if (!res.ok) return null;
+    const rows = await res.json();
+    const board = { easy: [], normal: [], hard: [], human_calculator: [] };
+    for (const diff of Object.keys(board)) {
+      board[diff] = rows.filter(r => r.difficulty === diff).slice(0, 10);
+    }
+    return board;
+  } catch { return null; }
+}
+
+async function submitScore(entry, difficulty) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/scores`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify({
+        username: entry.username,
+        score: entry.score,
+        correct: entry.correct,
+        wrong: entry.wrong,
+        time_remaining: entry.timeRemaining,
+        difficulty,
+        session_token: entry.sessionToken,
+      }),
+    });
+    return res.ok;
+  } catch { return false; }
+}
+
+// ======================== QUESTION MODULES ========================
+const QuestionModules = {
+  multiplication: {
+    name: 'Multiplication',
+    generate(difficulty, count) {
+      const questions = [];
+      const used = new Set();
+
+      const ranges = {
+        easy: { a: [2,5], b: [2,9], maxProduct: 50 },
+        normal: { a: [2,9], b: [2,9] },
+        hard: { a: [7,12], b: [7,12], excludeTen: true },
+        human_calculator: { a: [13,19], b: [7,12], maxProduct: 230 },
+      };
+
+      const r = ranges[difficulty];
+      let attempts = 0;
+      const maxAttempts = 10000;
+
+      while (questions.length < count && attempts < maxAttempts) {
+        attempts++;
+        const a = randInt(r.a[0], r.a[1]);
+        const b = randInt(r.b[0], r.b[1]);
+
+        // Rules
+        if (difficulty === 'easy' && (a * b >= 50)) continue;
+        if (difficulty === 'hard' && (a === 10 || b === 10)) continue;
+        if (difficulty === 'human_calculator' && (a * b > 230)) continue;
+        if (difficulty === 'human_calculator' && (b === 10)) continue;
+
+        // Shuffle operands so both orderings can appear
+        const [oa, ob] = Math.random() > 0.5 ? [a, b] : [b, a];
+        const key = `${oa}x${ob}`;
+        if (used.has(key)) continue;
+        used.add(key);
+
+        questions.push({ question: `${oa} × ${ob}`, answer: oa * ob });
+      }
+
+      // Fisher-Yates shuffle
+      for (let i = questions.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [questions[i], questions[j]] = [questions[j], questions[i]];
+      }
+
+      return questions.slice(0, count);
+    }
+  }
+  // Future: addition, division, mixed, fractions...
+};
+
+function randInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+// ======================== SCORING ========================
+function calculateScore(correct, wrong, timeRemaining, difficulty) {
+  const mult = { easy: 1.0, normal: 1.5, hard: 2.0, human_calculator: 3.0 }[difficulty];
+  const base = correct * 100;
+  const bonus = correct * timeRemaining * 2;
+  const penalty = wrong * 20;
+  return {
+    base,
+    bonus,
+    penalty,
+    mult,
+    raw: Math.max(0, base + bonus - penalty),
+    final: Math.round(Math.max(0, base + bonus - penalty) * mult),
+  };
+}
+
+// ======================== SCREEN MANAGEMENT ========================
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(`screen-${id}`).classList.add('active');
+}
+
+// ======================== LEADERBOARD UI ========================
+function renderLeaderboard(tab) {
+  const list = document.getElementById('leaderboard-list');
+  const entries = state.leaderboard[tab] || [];
+  if (entries.length === 0) {
+    list.innerHTML = '<div class="lb-empty">NO SCORES YET — BE FIRST!</div>';
+    return;
+  }
+  list.innerHTML = entries.map((e, i) => `
+    <div class="lb-row">
+      <div class="lb-rank">${i + 1}</div>
+      <div class="lb-name">${escHtml(e.username)}</div>
+      <div class="lb-stats">${e.correct}/20</div>
+      <div class="lb-score">${e.score.toLocaleString()}</div>
+    </div>
+  `).join('');
+}
+
+async function loadLeaderboard() {
+  const board = await fetchLeaderboard();
+  if (board) {
+    ['easy','normal','hard','human_calculator'].forEach(d => {
+      state.leaderboard[d] = board[d] || [];
+    });
+  }
+  renderLeaderboard(state.activeTab);
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ======================== ANTI-CHEAT ========================
+function setupAntiCheat() {
+  // Tab switch / blur
+  document.addEventListener('visibilitychange', onFocusLost);
+  window.addEventListener('blur', onFocusLost);
+
+  // Right-click (quiz only — handled in quiz start)
+  // DevTools keys
+  document.addEventListener('keydown', (e) => {
+    if (!state.quizActive) return;
+    if (
+      e.key === 'F12' ||
+      (e.ctrlKey && e.shiftKey && ['I','J','C'].includes(e.key.toUpperCase())) ||
+      (e.ctrlKey && e.key.toUpperCase() === 'U')
+    ) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
+}
+
+function onFocusLost() {
+  if (!state.quizActive) return;
+  if (document.hidden || document.visibilityState === 'hidden') {
+    triggerFocusLost();
+  }
+}
+
+function triggerFocusLost() {
+  if (!state.quizActive) return;
+  state.focusLostCount++;
+  if (state.focusLostCount === 1) {
+    showCheatWarning(false);
+  } else {
+    state.cheated = true;
+    showCheatWarning(true);
+    endQuiz();
+  }
+}
+
+function showCheatWarning(isFinal) {
+  const overlay = document.getElementById('cheat-overlay');
+  const title = document.getElementById('cheat-title');
+  const msg = document.getElementById('cheat-msg');
+  const btn = document.getElementById('cheat-continue-btn');
+
+  if (isFinal) {
+    title.textContent = 'SCORE VOIDED';
+    msg.textContent = 'Tab switching detected again. Your score will NOT be submitted. Quiz ended.';
+    btn.textContent = 'SEE RESULTS';
+    btn.onclick = () => {
+      overlay.classList.remove('show');
+      showResults();
+    };
+  } else {
+    title.textContent = 'WARNING';
+    msg.textContent = 'Tab switching detected! This is your first warning. Do it again and your score will be voided.';
+    btn.textContent = 'UNDERSTOOD — RESUME';
+    btn.onclick = () => overlay.classList.remove('show');
+  }
+  overlay.classList.add('show');
+}
+
+// ======================== QUIZ LOGIC ========================
+function startCountdown(difficulty) {
+  state.difficulty = difficulty;
+  state.sessionToken = Math.random().toString(36).slice(2);
+  state.focusLostCount = 0;
+  state.cheated = false;
+  state.currentQ = 0;
+  state.answers = [];
+  state.timeRemaining = 40;
+  state.quizActive = false;
+
+  // Generate questions
+  state.questions = QuestionModules.multiplication.generate(difficulty, 20);
+
+  showScreen('quiz');
+
+  // Set up context menu block for quiz
+  document._quizContextBlock = (e) => { if (state.quizActive) e.preventDefault(); };
+  document.addEventListener('contextmenu', document._quizContextBlock);
+
+  // Countdown
+  const overlay = document.getElementById('countdown-overlay');
+  const num = document.getElementById('countdown-num');
+  overlay.style.display = 'flex';
+  num.textContent = 'GET READY';
+
+  setTimeout(() => {
+    let count = 3;
+    num.textContent = count;
+    const iv = setInterval(() => {
+      count--;
+      if (count <= 0) {
+        clearInterval(iv);
+        overlay.style.display = 'none';
+        beginQuiz();
+      } else {
+        num.textContent = count;
+      }
+    }, 800);
+  }, 700);
+}
+
+function beginQuiz() {
+  state.quizActive = true;
+  state.sessionStartTime = Date.now();
+
+  // Update diff label
+  const labels = { easy:'EASY', normal:'NORMAL', hard:'HARD', human_calculator:'HUMAN CALC' };
+  document.getElementById('quiz-diff-label').textContent = labels[state.difficulty];
+  document.getElementById('q-total').textContent = state.questions.length;
+
+  showQuestion(0);
+  startTimer();
+
+  // Block paste/copy on input
+  const inp = document.getElementById('answer-input');
+  inp.addEventListener('paste', (e) => e.preventDefault());
+  inp.addEventListener('copy', (e) => e.preventDefault());
+}
+
+function showQuestion(idx) {
+  state.currentQ = idx;
+  const q = state.questions[idx];
+  const display = document.getElementById('question-display');
+  display.innerHTML = `${q.question} <span class="equals">=</span> ?`;
+  display.style.animation = 'none';
+  requestAnimationFrame(() => { display.style.animation = ''; });
+
+  document.getElementById('q-current').textContent = idx + 1;
+  document.getElementById('answer-input').value = '';
+  document.getElementById('answer-input').focus();
+}
+
+function startTimer() {
+  const bar = document.getElementById('timer-bar');
+  const display = document.getElementById('timer-display');
+
+  state.timerInterval = setInterval(() => {
+    const elapsed = (Date.now() - state.sessionStartTime) / 1000;
+    const rem = Math.max(0, 40 - elapsed);
+    state.timeRemaining = rem;
+
+    const secs = Math.ceil(rem);
+    display.textContent = secs;
+    bar.style.width = (rem / 40 * 100) + '%';
+
+    // Color states
+    const colorClass = rem <= 10 ? 'red' : rem <= 20 ? 'yellow' : '';
+    display.className = 'timer-display ' + colorClass;
+    bar.className = 'timer-bar ' + colorClass;
+
+    if (rem <= 0) {
+      clearInterval(state.timerInterval);
+      // Fill remaining questions as skipped
+      while (state.answers.length < state.questions.length) {
+        state.answers.push({ given: null, correct: state.questions[state.answers.length].answer, skipped: true });
+      }
+      endQuiz();
+    }
+  }, 80);
+}
+
+function submitAnswer() {
+  if (!state.quizActive) return;
+  const inp = document.getElementById('answer-input');
+  const raw = inp.value.trim();
+  const given = raw === '' ? null : parseInt(raw, 10);
+  const correct = state.questions[state.currentQ].answer;
+
+  state.answers.push({ given, correct, skipped: raw === '' });
+
+  const nextIdx = state.currentQ + 1;
+  if (nextIdx >= state.questions.length) {
+    endQuiz();
+  } else {
+    showQuestion(nextIdx);
+  }
+}
+
+function endQuiz() {
+  if (state.timerInterval) clearInterval(state.timerInterval);
+  state.quizActive = false;
+  document.removeEventListener('contextmenu', document._quizContextBlock);
+
+  const elapsed = (Date.now() - state.sessionStartTime) / 1000;
+  state.timeRemaining = Math.max(0, 40 - elapsed);
+
+  showResults();
+}
+
+// ======================== RESULTS ========================
+async function showResults() {
+  const answers = state.answers;
+  let correct = 0, wrong = 0;
+  answers.forEach(a => {
+    if (!a.skipped && a.given !== null) {
+      if (a.given === a.correct) correct++;
+      else wrong++;
+    }
+  });
+
+  const timeRem = Math.round(state.timeRemaining);
+  const scoring = calculateScore(correct, wrong, timeRem, state.difficulty);
+
+  // Render score breakdown
+  const diffLabels = { easy:'Easy', normal:'Normal', hard:'Hard', human_calculator:'Human Calculator' };
+  document.getElementById('score-rows').innerHTML = `
+    <div class="score-row"><span class="label">Base (${correct} correct × 100)</span><span class="value">${scoring.base.toLocaleString()}</span></div>
+    <div class="score-row"><span class="label">Time Bonus (${correct} × ${timeRem}s × 2)</span><span class="value green">+${scoring.bonus.toLocaleString()}</span></div>
+    <div class="score-row"><span class="label">Penalty (${wrong} wrong × 20)</span><span class="value red">−${scoring.penalty.toLocaleString()}</span></div>
+    <div class="score-row"><span class="label">Raw Score</span><span class="value">${scoring.raw.toLocaleString()}</span></div>
+    <div class="score-row total"><span class="label">FINAL (${diffLabels[state.difficulty]})</span><span class="value">${scoring.final.toLocaleString()}</span></div>
+  `;
+
+  // Render review table
+  document.getElementById('res-correct').textContent = correct;
+  document.getElementById('res-wrong').textContent = wrong;
+  const tbody = document.getElementById('review-tbody');
+  tbody.innerHTML = answers.map((a, i) => {
+    const q = state.questions[i];
+    const isCorrect = !a.skipped && a.given === a.correct;
+    const isSkipped = a.skipped || a.given === null;
+    return `<tr>
+      <td>${i+1}</td>
+      <td class="q-col">${q.question}</td>
+      <td class="${isSkipped ? 'skipped' : 'your-col'}">${isSkipped ? 'skipped' : a.given}</td>
+      <td class="ans-col">${a.correct}</td>
+      <td class="result-col">${isSkipped ? '—' : isCorrect ? '✅' : '❌'}</td>
+    </tr>`;
+  }).join('');
+
+  // Submit score to leaderboard (if not cheated)
+  let rank = null;
+  if (!state.cheated && scoring.final > 0) {
+    const entry = {
+      username: state.username,
+      score: scoring.final,
+      correct,
+      wrong,
+      timeRemaining: timeRem,
+      timestamp: new Date().toISOString(),
+      sessionToken: state.sessionToken,
+    };
+    const ok = await submitScore(entry, state.difficulty);
+    if (ok) {
+      // Reload leaderboard fresh from server
+      const updated = await fetchLeaderboard();
+      if (updated) {
+        ['easy','normal','hard','human_calculator'].forEach(d => {
+          state.leaderboard[d] = updated[d] || [];
+        });
+        const idx = state.leaderboard[state.difficulty].findIndex(e => e.score === scoring.final && e.username === state.username);
+        rank = idx >= 0 ? idx + 1 : null;
+      }
+    }
+  }
+
+  // Rank message
+  const diffLabel = { easy:'Easy', normal:'Normal', hard:'Hard', human_calculator:'Human Calculator' }[state.difficulty];
+  const rankMsg = document.getElementById('rank-msg');
+  rankMsg.className = 'results-rank-msg';
+
+  if (state.cheated) {
+    rankMsg.textContent = 'Your score was not submitted — tab switching was detected.';
+    rankMsg.classList.add('cheated');
+  } else if (rank === 1) {
+    rankMsg.innerHTML = `🏆 You're the #1 player on ${diffLabel}!`;
+    rankMsg.classList.add('gold');
+  } else if (rank === 2) {
+    rankMsg.innerHTML = `🥈 You're 2nd place on ${diffLabel}!`;
+    rankMsg.classList.add('silver');
+  } else if (rank === 3) {
+    rankMsg.innerHTML = `🥉 3rd place on ${diffLabel}!`;
+    rankMsg.classList.add('bronze');
+  } else if (rank && rank <= 10) {
+    rankMsg.innerHTML = `You made the Top 10 on ${diffLabel}! You're #${rank}!`;
+    rankMsg.classList.add('top10');
+  } else if ((state.difficulty === 'hard' || state.difficulty === 'human_calculator') && correct >= 6) {
+    rankMsg.innerHTML = `Impressive! Finishing ${correct} on ${diffLabel} already beats most people.`;
+    rankMsg.classList.add('impressive');
+  } else {
+    rankMsg.innerHTML = `Great effort, ${state.username}! You got ${correct}/20. Keep it up!`;
+    rankMsg.classList.add('normal-r');
+  }
+
+  showScreen('results');
+}
+
+// ======================== TOAST ========================
+function showToast(msg, duration = 2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// ======================== INIT & EVENTS ========================
+document.addEventListener('DOMContentLoaded', () => {
+  setupAntiCheat();
+
+  // Username input
+  const usernameInput = document.getElementById('username-input');
+  const btnStart = document.getElementById('btn-start');
+
+  // Pre-fill
+  const savedUsername = localStorage.getItem('lastUsername') || '';
+  usernameInput.value = savedUsername;
+  validateUsername(savedUsername);
+
+  usernameInput.addEventListener('input', () => {
+    // Enforce rules live
+    let val = usernameInput.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+    if (usernameInput.value !== val) usernameInput.value = val;
+    validateUsername(val);
+  });
+
+  function validateUsername(val) {
+    const valid = val.length >= 2 && val.length <= 20 && /^[a-z0-9_]+$/.test(val);
+    btnStart.disabled = !valid;
+    state.username = valid ? val : '';
+  }
+
+  btnStart.addEventListener('click', () => {
+    if (!state.username) return;
+    localStorage.setItem('lastUsername', state.username);
+    document.getElementById('diff-greeting').textContent = `Ready, ${state.username}?`;
+    showScreen('difficulty');
+  });
+
+  // Difficulty selection
+  document.querySelectorAll('.diff-card').forEach(card => {
+    card.addEventListener('click', () => {
+      startCountdown(card.dataset.diff);
+    });
+  });
+
+  document.getElementById('diff-back-btn').addEventListener('click', () => showScreen('home'));
+
+  // Answer input — Enter to submit
+  document.getElementById('answer-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') submitAnswer();
+  });
+
+  // Results buttons
+  document.getElementById('btn-play-again').addEventListener('click', () => {
+    showScreen('difficulty');
+  });
+
+  document.getElementById('btn-change-player').addEventListener('click', () => {
+    showScreen('home');
+    loadLeaderboard();
+  });
+
+  document.getElementById('btn-view-lb').addEventListener('click', () => {
+    showScreen('home');
+    loadLeaderboard();
+    // Scroll to leaderboard
+    setTimeout(() => {
+      document.querySelector('.leaderboard-section').scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  });
+
+  // Leaderboard tabs
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.activeTab = btn.dataset.tab;
+      renderLeaderboard(state.activeTab);
+    });
+  });
+
+
+  // Load leaderboard
+  loadLeaderboard();
+});
+</script>
+</body>
+</html>
