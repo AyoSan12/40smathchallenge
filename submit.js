@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid JSON' });
   }
 
-  const { username, difficulty, questions, userAnswers, timeRemaining, sessionToken } = body;
+  const { username, difficulty, questions, userAnswers, timeRemaining, sessionToken, startTime } = body;
 
   // ── 1. Validate username ────────────────────────────────────────────────────
   if (!username || typeof username !== 'string') return res.status(400).json({ error: 'No username' });
@@ -41,7 +41,7 @@ export default async function handler(req, res) {
   const TR = parseFloat(timeRemaining);
   if (isNaN(TR) || TR < 0 || TR > 40) return res.status(400).json({ error: 'Invalid time' });
 
-  // ── 5. Server-side re-score (the core anti-cheat) ──────────────────────────
+  // ── 7. Server-side re-score (the core anti-cheat) ──────────────────────────
   let correct = 0, wrong = 0, answered = 0;
   const usedPairs = new Set();
 
@@ -75,7 +75,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // ── 6. Timing sanity check ──────────────────────────────────────────────────
+  // ── 8. Timing sanity check ──────────────────────────────────────────────────
   // Even typing "6" + Enter takes at least 0.4s. 20 questions at that speed = 8s minimum.
   const timeElapsed = 40 - TR;
   const MIN_PER_ANSWERED = 0.4; // seconds — very generous floor
@@ -84,7 +84,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Timing anomaly detected' });
   }
 
-  // ── 7. Compute final score server-side ──────────────────────────────────────
+  // ── 9. Compute final score server-side ──────────────────────────────────────
   const MULT = { easy: 1.0, normal: 1.5, hard: 2.0, human_calculator: 3.0 }[difficulty];
   const timeRem = Math.round(TR);
   const base = correct * 100;
@@ -96,7 +96,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ score: 0, submitted: false });
   }
 
-  // ── 8. Write to Supabase using SERVICE KEY (never exposed to client) ─────────
+  // ── 10. Write to Supabase using SERVICE KEY (never exposed to client) ─────────
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
