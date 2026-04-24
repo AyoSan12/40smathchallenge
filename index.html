@@ -1089,6 +1089,7 @@
 const state = {
   username: '',
   difficulty: '',
+  gameStartTime: null,
   questions: [],
   answers: [],
   sessionToken: '',
@@ -1126,26 +1127,22 @@ async function fetchLeaderboard() {
 
 async function submitScore(entry, difficulty) {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/scores`, {
+    const payload = {
+      username: state.username,
+      difficulty: state.difficulty,
+      questions: state.questions,
+      userAnswers: state.answers.map(a => (a.skipped || a.given === null) ? null : a.given),
+      timeRemaining: Math.round(state.timeRemaining),
+      sessionToken: state.sessionToken,
+      startTime: state.gameStartTime,
+    };
+    const res = await fetch('/api/submit', {
       method: 'POST',
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        'Content-Type': 'application/json',
-        Prefer: 'return=minimal',
-      },
-      body: JSON.stringify({
-        username: entry.username,
-        score: entry.score,
-        correct: entry.correct,
-        wrong: entry.wrong,
-        time_remaining: entry.timeRemaining,
-        difficulty,
-        session_token: entry.sessionToken,
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     });
-    return res.ok;
-  } catch { return false; }
+    return await res.json();
+  } catch { return { ok: false }; }
 }
 
 // ======================== QUESTION MODULES ========================
@@ -1365,6 +1362,7 @@ function startCountdown(difficulty) {
 function beginQuiz() {
   state.quizActive = true;
   state.sessionStartTime = Date.now();
+  state.gameStartTime = Date.now();
 
   // Update diff label
   const labels = { easy:'EASY', normal:'NORMAL', hard:'HARD', human_calculator:'HUMAN CALC' };
@@ -1494,24 +1492,17 @@ async function showResults() {
   // Submit score to leaderboard (if not cheated)
   let rank = null;
   if (!state.cheated && scoring.final > 0) {
-    const entry = {
-      username: state.username,
-      score: scoring.final,
-      correct,
-      wrong,
-      timeRemaining: timeRem,
-      timestamp: new Date().toISOString(),
-      sessionToken: state.sessionToken,
-    };
-    const ok = await submitScore(entry, state.difficulty);
-    if (ok) {
+    const result = await submitScore({}, state.difficulty);
+    if (result.ok) {
       // Reload leaderboard fresh from server
       const updated = await fetchLeaderboard();
       if (updated) {
         ['easy','normal','hard','human_calculator'].forEach(d => {
           state.leaderboard[d] = updated[d] || [];
         });
-        const idx = state.leaderboard[state.difficulty].findIndex(e => e.score === scoring.final && e.username === state.username);
+        // Use server-validated score for rank lookup
+        const serverScore = result.score;
+        const idx = state.leaderboard[state.difficulty].findIndex(e => e.score === serverScore && e.username === state.username);
         rank = idx >= 0 ? idx + 1 : null;
       }
     }
