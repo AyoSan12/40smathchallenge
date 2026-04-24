@@ -1109,7 +1109,6 @@
 const state = {
   username: '',
   difficulty: '',
-  gameStartTime: null,
   questions: [],
   answers: [],
   sessionToken: '',
@@ -1155,7 +1154,6 @@ async function submitScore(entry, difficulty) {
       userAnswers: state.answers.map(a => (a.skipped || a.given === null) ? null : a.given),
       timeRemaining: Math.round(state.timeRemaining),
       sessionToken: state.sessionToken,
-      startTime: state.gameStartTime,
     };
     const res = await fetch('/api/submit', {
       method: 'POST',
@@ -1339,9 +1337,9 @@ function showCheatWarning(isFinal) {
 }
 
 // ======================== QUIZ LOGIC ========================
-function startCountdown(difficulty) {
+async function startCountdown(difficulty) {
   state.difficulty = difficulty;
-  state.sessionToken = Math.random().toString(36).slice(2);
+  state.sessionToken = '';
   state.focusLostCount = 0;
   state.cheated = false;
   state.currentQ = 0;
@@ -1357,6 +1355,15 @@ function startCountdown(difficulty) {
   // Set up context menu block for quiz
   document._quizContextBlock = (e) => { if (state.quizActive) e.preventDefault(); };
   document.addEventListener('contextmenu', document._quizContextBlock);
+
+  // Ambil session token dari server SEBELUM countdown dimulai
+  try {
+    const tokenRes = await fetch('/api/start', { method: 'POST' });
+    const tokenData = await tokenRes.json();
+    state.sessionToken = tokenData.sessionToken || '';
+  } catch {
+    state.sessionToken = '';
+  }
 
   // Countdown
   const overlay = document.getElementById('countdown-overlay');
@@ -1383,7 +1390,6 @@ function startCountdown(difficulty) {
 function beginQuiz() {
   state.quizActive = true;
   state.sessionStartTime = Date.now();
-  state.gameStartTime = Date.now();
 
   // Update diff label
   const labels = { easy:'EASY', normal:'NORMAL', hard:'HARD', human_calculator:'HUMAN CALC' };
