@@ -106,21 +106,21 @@ export default async function handler(req, res) {
   }
 
   try {
-    const dbRes = await fetch(`${SUPABASE_URL}/rest/v1/scores`, {
+    const dbRes = await fetch(`${SUPABASE_URL}/rest/v1/scores?on_conflict=username,difficulty`, {
       method: 'POST',
       headers: {
-        apikey: SUPABASE_SERVICE_KEY,
-        Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
         'Content-Type': 'application/json',
-        Prefer: 'return=minimal',
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        'Prefer': 'resolution=merge-duplicates'
       },
       body: JSON.stringify({
-        username,
+        username: username.toLowerCase().trim(),
         score: finalScore,
-        correct,
-        wrong,
+        difficulty: difficulty,
+        correct: correct,
+        wrong: wrong,
         time_remaining: timeRem,
-        difficulty,
         session_token: sessionToken || '',
       }),
     });
