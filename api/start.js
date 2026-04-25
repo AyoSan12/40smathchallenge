@@ -1,14 +1,10 @@
-// api/start.js — Menerbitkan HMAC-signed session token
-// Token digunakan oleh /api/submit untuk memverifikasi bahwa quiz dimulai secara sah.
-// Tidak ada yang berubah dari versi asli — sudah aman.
-
 export const config = {
   runtime: 'edge',
 };
 
 export default async function handler(req) {
   const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': 'https://40smathchallenge.vercel.app',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   };
@@ -20,7 +16,7 @@ export default async function handler(req) {
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
@@ -30,7 +26,7 @@ export default async function handler(req) {
   if (!SECRET) {
     return new Response(JSON.stringify({ error: 'Server config error' }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
@@ -48,6 +44,7 @@ export default async function handler(req) {
   );
 
   const signatureBuffer = await crypto.subtle.sign('HMAC', keyMaterial, encoder.encode(payload));
+
   const signature = Array.from(new Uint8Array(signatureBuffer))
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
@@ -57,8 +54,8 @@ export default async function handler(req) {
   return new Response(JSON.stringify({ sessionToken }), {
     status: 200,
     headers: {
-      'Content-Type': 'application/json',
       ...corsHeaders,
+      'Content-Type': 'application/json',
       'Cache-Control': 'no-store',
     },
   });
