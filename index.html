@@ -1361,9 +1361,9 @@ function showCheatWarning(isFinal) {
 }
 
 // ======================== QUIZ LOGIC ========================
-function startCountdown(difficulty) {
+async function startCountdown(difficulty) {
   state.difficulty = difficulty;
-  state.sessionToken = Math.random().toString(36).slice(2);
+  state.sessionToken = '';
   state.focusLostCount = 0;
   state.cheated = false;
   state.currentQ = 0;
@@ -1375,6 +1375,22 @@ function startCountdown(difficulty) {
   state.questions = QuestionModules.multiplication.generate(difficulty, 20);
 
   showScreen('quiz');
+
+  // Fetch HMAC session token from server
+  try {
+    const res = await fetch('/api/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await res.json();
+    if (data.sessionToken) {
+      state.sessionToken = data.sessionToken;
+    } else {
+      console.error('Failed to get session token:', data);
+    }
+  } catch (e) {
+    console.error('Error fetching session token:', e);
+  }
 
   // Set up context menu block for quiz
   document._quizContextBlock = (e) => { if (state.quizActive) e.preventDefault(); };
@@ -1649,6 +1665,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const usernameValid = state.username.length >= 2;
     btnStart.disabled = !(usernameValid && turnstileToken);
   }
+
+  // Turnstile fallback: if script fails to load after 5s, allow bypass
+  setTimeout(() => {
+    if (typeof turnstile === 'undefined') {
+      console.warn('Turnstile failed to load, enabling bypass');
+      turnstileToken = 'turnstile-unavailable';
+      updateStartBtn();
+      const widget = document.getElementById('turnstile-widget');
+      if (widget) widget.style.display = 'none';
+    }
+  }, 5000);
 
   // Pre-fill
   const savedUsername = localStorage.getItem('lastUsername') || '';
