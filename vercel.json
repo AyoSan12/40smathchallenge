@@ -4,5 +4,9 @@
       "path": "/api/weekly-reset",
       "schedule": "0 0 * * 1"
     }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
