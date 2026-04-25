@@ -329,7 +329,7 @@ function validateRange(a, b, difficulty) {
       return null;
 
     case 'hard':
-      if (a < 7 || a > 12 || b < 7 || b > 12) return 'Hard operand out of range';
+      if (a < 6 || a > 12 || b < 6 || b > 12) return 'Hard operand out of range';
       if (a === 10 || b === 10) return 'Hard cannot use x10';
       return null;
 
