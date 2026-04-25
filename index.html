@@ -1176,16 +1176,23 @@ async function submitScore(entry, difficulty) {
       difficulty: state.difficulty,
       questions: state.questions,
       userAnswers: state.answers.map(a => (a.skipped || a.given === null) ? null : a.given),
-      timeRemaining: Math.round(state.timeRemaining * 1000), // kirim dalam MILIDETIK
+      timeRemaining: Math.round(state.timeRemaining * 1000),
       sessionToken: state.sessionToken,
     };
+    console.log('[SUBMIT] token:', state.sessionToken ? state.sessionToken.slice(0,20)+'...' : 'KOSONG!');
+    console.log('[SUBMIT] difficulty:', payload.difficulty, 'timeRemaining:', payload.timeRemaining);
     const res = await fetch('/api/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    return await res.json();
-  } catch { return { ok: false }; }
+    const data = await res.json();
+    console.log('[SUBMIT] server HTTP', res.status, ':', JSON.stringify(data));
+    return data;
+  } catch (e) {
+    console.error('[SUBMIT] error:', e);
+    return { ok: false };
+  }
 }
 
 // ======================== QUESTION MODULES ========================
