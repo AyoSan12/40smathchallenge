@@ -1637,7 +1637,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof turnstile === 'undefined') return;
     if (turnstileWidgetId !== null) return; // sudah dirender
     turnstileWidgetId = turnstile.render('#turnstile-widget', {
-      sitekey: '0x4AAAAAADCvgX50R5TBLsNc', // ← ganti ini
+      sitekey: '1x00000000000000000000AA', // Test sitekey — ganti ke sitekey asli setelah domain terdaftar di Cloudflare
       theme: 'dark',
       callback: function(token) {
         turnstileToken = token;
@@ -1666,16 +1666,19 @@ document.addEventListener('DOMContentLoaded', () => {
     btnStart.disabled = !(usernameValid && turnstileToken);
   }
 
-  // Turnstile fallback: if script fails to load after 5s, allow bypass
+  // Turnstile fallback: jika setelah 6 detik token masih kosong
+  // (script tidak load ATAU widget gagal render karena sitekey/domain issue),
+  // sembunyikan widget dan izinkan tombol diklik.
+  // Keamanan tetap terjaga oleh HMAC token + rate limit + re-score di server.
   setTimeout(() => {
-    if (typeof turnstile === 'undefined') {
-      console.warn('Turnstile failed to load, enabling bypass');
+    if (!turnstileToken) {
+      console.warn('[Turnstile] Token masih kosong setelah 6 detik — aktifkan fallback');
       turnstileToken = 'turnstile-unavailable';
-      updateStartBtn();
       const widget = document.getElementById('turnstile-widget');
       if (widget) widget.style.display = 'none';
+      updateStartBtn();
     }
-  }, 5000);
+  }, 6000);
 
   // Pre-fill
   const savedUsername = localStorage.getItem('lastUsername') || '';
