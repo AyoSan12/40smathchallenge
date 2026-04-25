@@ -236,32 +236,44 @@ export default async function handler(req) {
 
   try {
     const dbRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/scores?on_conflict=username,difficulty`,
+      `${SUPABASE_URL}/rest/v1/rpc/upsert_score_if_higher`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'apikey': SUPABASE_SERVICE_KEY,
           'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
-          'Prefer': 'resolution=merge-duplicates',
         },
         body: JSON.stringify({
-          username: username.toLowerCase().trim(),
-          score: finalScore,
-          difficulty,
-          correct,
-          wrong,
-          time_remaining: timeRem,
-          session_token: sessionToken,
+          p_username: username.toLowerCase().trim(),
+          p_score: finalScore,
+          p_difficulty: difficulty,
+          p_correct: correct,
+          p_wrong: wrong,
+          p_time_remaining: timeRem,
+          p_session_token: sessionToken,
         }),
       }
     );
 
     if (!dbRes.ok) {
       const errText = await dbRes.text();
-      console.error('Supabase insert failed:', errText);
+      console.error('Supabase RPC failed:', errText);
       return fail(500, 'Database error');
     }
+
+    const rpcResult = await dbRes.json();
+    const action = rpcResult?.action;
+
+    // Kalau skor lama lebih tinggi, kasih tahu user
+    if (action === 'kept') {
+      return new Response(JSON.stringify({
+        score: finalScore,
+        submitted: false,
+        message: `Skor kamu (${finalScore}) tidak mengalahkan rekor sebelumnya (${rpcResult.score}). Coba lagi!`,
+      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
   } catch (e) {
     console.error('Supabase fetch error:', e);
     return fail(500, 'Network error');
