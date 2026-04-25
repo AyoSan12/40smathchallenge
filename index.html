@@ -941,6 +941,7 @@
     .diff-card { padding: 24px 28px; }
   }
 </style>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </head>
 <body>
 
@@ -960,6 +961,7 @@
       <input type="text" id="username-input" placeholder="enter_username" maxlength="20" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
     </div>
     <div class="input-hint">lowercase · letters/numbers/underscore · 2–20 chars</div>
+    <div id="turnstile-widget" style="margin: 12px auto; display:flex; justify-content:center;"></div>
     <button class="btn-start" id="btn-start" disabled>START CHALLENGE →</button>
   </div>
 
@@ -1596,6 +1598,42 @@ document.addEventListener('DOMContentLoaded', () => {
   // Username input
   const usernameInput = document.getElementById('username-input');
   const btnStart = document.getElementById('btn-start');
+  let turnstileToken = '';
+  let turnstileWidgetId = null;
+
+  // Render Turnstile widget
+  function renderTurnstile() {
+    if (typeof turnstile === 'undefined') return;
+    if (turnstileWidgetId !== null) return; // sudah dirender
+    turnstileWidgetId = turnstile.render('#turnstile-widget', {
+      sitekey: '0x4AAAAAADCvgX50R5TBLsNc', // ← ganti ini
+      theme: 'dark',
+      callback: function(token) {
+        turnstileToken = token;
+        updateStartBtn();
+      },
+      'expired-callback': function() {
+        turnstileToken = '';
+        updateStartBtn();
+      },
+      'error-callback': function() {
+        turnstileToken = '';
+        updateStartBtn();
+      },
+    });
+  }
+
+  // Coba render saat script Turnstile sudah load
+  if (typeof turnstile !== 'undefined') {
+    renderTurnstile();
+  } else {
+    window.addEventListener('load', renderTurnstile);
+  }
+
+  function updateStartBtn() {
+    const usernameValid = state.username.length >= 2;
+    btnStart.disabled = !(usernameValid && turnstileToken);
+  }
 
   // Pre-fill
   const savedUsername = localStorage.getItem('lastUsername') || '';
@@ -1611,14 +1649,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function validateUsername(val) {
     const valid = val.length >= 2 && val.length <= 20 && /^[a-z0-9_]+$/.test(val);
-    btnStart.disabled = !valid;
     state.username = valid ? val : '';
+    updateStartBtn();
   }
 
   btnStart.addEventListener('click', () => {
-    if (!state.username) return;
+    if (!state.username || !turnstileToken) return;
     localStorage.setItem('lastUsername', state.username);
     document.getElementById('diff-greeting').textContent = `Ready, ${state.username}?`;
+    // Reset turnstile setelah dipakai agar tidak bisa reuse token
+    if (typeof turnstile !== 'undefined' && turnstileWidgetId !== null) {
+      turnstile.reset(turnstileWidgetId);
+      turnstileToken = '';
+    }
     showScreen('difficulty');
   });
 
