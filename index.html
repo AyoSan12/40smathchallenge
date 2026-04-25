@@ -1471,10 +1471,6 @@ function startTimer() {
 
     if (rem <= 0) {
       clearInterval(state.timerInterval);
-      // Fill remaining questions as skipped
-      while (state.answers.length < state.questions.length) {
-        state.answers.push({ given: null, correct: state.questions[state.answers.length].answer, skipped: true });
-      }
       endQuiz();
     }
   }, 80);
@@ -1504,6 +1500,11 @@ function endQuiz() {
 
   const elapsed = (Date.now() - state.sessionStartTime) / 1000;
   state.timeRemaining = Math.max(0, 40 - elapsed);
+
+  // Pastikan semua 20 soal tercatat — soal yang belum terjawab = skipped
+  while (state.answers.length < state.questions.length) {
+    state.answers.push({ given: null, correct: state.questions[state.answers.length].answer, skipped: true });
+  }
 
   showResults();
 }
