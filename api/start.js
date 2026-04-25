@@ -1,63 +1,110 @@
-// api/weekly-reset.js — Vercel Cron Job untuk weekly leaderboard reset
-// Schedule: setiap Senin jam 00:00 UTC (lihat vercel.json)
-// Endpoint ini hanya bisa dipanggil oleh Vercel Cron (ada Authorization header khusus)
-
 export const config = {
   runtime: 'edge',
 };
 
-export default async function handler(req) {
-  // ── Security: hanya Vercel Cron yang boleh panggil endpoint ini ──────────
-  const authHeader = req.headers.get('authorization');
-  const CRON_SECRET = (typeof process !== 'undefined' && process.env?.CRON_SECRET)
-    || globalThis.__env__?.CRON_SECRET;
+// ── Helper: verifikasi Cloudflare Turnstile ──────────────────────────────────
+async function verifyTurnstile(token, ip) {
+  const TURNSTILE_SECRET = (typeof process !== 'undefined' && process.env?.TURNSTILE_SECRET_KEY)
+    || globalThis.__env__?.TURNSTILE_SECRET_KEY;
 
-  if (!CRON_SECRET || authHeader !== `Bearer ${CRON_SECRET}`) {
-    return new Response('Unauthorized', { status: 401 });
+  if (!TURNSTILE_SECRET) {
+    console.warn('TURNSTILE_SECRET_KEY not set — skipping verification');
+    return { success: true }; // graceful degradation kalau env belum diset
   }
 
-  const SUPABASE_URL = (typeof process !== 'undefined' && process.env?.SUPABASE_URL)
-    || globalThis.__env__?.SUPABASE_URL;
-  const SUPABASE_SERVICE_KEY = (typeof process !== 'undefined' && process.env?.SUPABASE_SERVICE_KEY)
-    || globalThis.__env__?.SUPABASE_SERVICE_KEY;
+  if (!token) return { success: false, reason: 'No turnstile token' };
 
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-    return new Response(JSON.stringify({ error: 'Missing env vars' }), { status: 500 });
-  }
+  const formData = new FormData();
+  formData.append('secret', TURNSTILE_SECRET);
+  formData.append('response', token);
+  if (ip) formData.append('remoteip', ip);
 
   try {
-    // Increment CURRENT_SEASON di Supabase — pakai RPC atau update config table
-    // Opsi A: Pakai Supabase RPC increment_season (buat function ini di Supabase)
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_season`, {
+    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_SERVICE_KEY,
-        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
-      },
-      body: JSON.stringify({}),
+      body: formData,
     });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error('Season increment failed:', errText);
-      return new Response(JSON.stringify({ error: 'DB error', detail: errText }), { status: 500 });
-    }
-
-    const result = await res.json();
-    console.log(`[WEEKLY RESET] Season incremented. New season: ${result?.new_season}`);
-
-    return new Response(JSON.stringify({
-      ok: true,
-      message: `Season reset OK. New season: ${result?.new_season}`,
-      timestamp: new Date().toISOString(),
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
-
+    const data = await res.json();
+    return data;
   } catch (e) {
-    console.error('Weekly reset error:', e);
-    return new Response(JSON.stringify({ error: 'Network error', detail: e.message }), { status: 500 });
+    console.error('Turnstile verify error:', e);
+    return { success: false, reason: 'Verify request failed' };
   }
+}
+
+export default async function handler(req) {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': 'https://40smathchallenge.vercel.app',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 200, headers: corsHeaders });
+  }
+
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const SECRET = (typeof process !== 'undefined' && process.env?.SESSION_SECRET)
+    || globalThis.__env__?.SESSION_SECRET;
+
+  if (!SECRET) {
+    return new Response(JSON.stringify({ error: 'Server config error' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  // ── Verifikasi Turnstile ──────────────────────────────────────────────────
+  let body = {};
+  try { body = await req.json(); } catch {}
+
+  const clientIp = req.headers.get('x-real-ip')
+    || (req.headers.get('x-forwarded-for') || '').split(',')[0].trim()
+    || '127.0.0.1';
+
+  const turnstileResult = await verifyTurnstile(body.turnstileToken, clientIp);
+  if (!turnstileResult.success) {
+    console.warn(`[TURNSTILE FAIL] IP=${clientIp} reason=${JSON.stringify(turnstileResult['error-codes'])}`);
+    return new Response(JSON.stringify({ error: 'Verifikasi Cloudflare gagal. Refresh halaman dan coba lagi.' }), {
+      status: 403,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  // ── Generate HMAC session token ───────────────────────────────────────────
+  const timestamp = Date.now().toString();
+  const nonce = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+  const payload = `${timestamp}.${nonce}`;
+
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(SECRET),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const signatureBuffer = await crypto.subtle.sign('HMAC', keyMaterial, encoder.encode(payload));
+
+  const signature = Array.from(new Uint8Array(signatureBuffer))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+
+  const sessionToken = `${payload}.${signature}`;
+
+  return new Response(JSON.stringify({ sessionToken }), {
+    status: 200,
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-store',
+    },
+  });
 }
