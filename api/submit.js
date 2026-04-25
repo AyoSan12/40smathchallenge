@@ -113,6 +113,7 @@ export default async function handler(req) {
   }
 
   // ── 2. Verifikasi session token ───────────────────────────────────────────
+  console.log(`[TOKEN DEBUG] parts=${sessionToken?.split('.').length} secretLen=${SESSION_SECRET?.length}`);
   const { ok, ageSeconds, nonce, reason } = await verifySessionToken(sessionToken, SESSION_SECRET);
   if (!ok) {
     console.warn(`[TOKEN INVALID] ${username} — ${reason}`);
