@@ -157,20 +157,19 @@ export default async function handler(req) {
   if (!Array.isArray(questions) || questions.length !== 20) return fail(400, 'Need exactly 20 questions');
   if (!Array.isArray(userAnswers) || userAnswers.length !== 20) return fail(400, 'Need exactly 20 answers');
 
-  // ── 7. Validasi timeRemaining ─────────────────────────────────────────────
-  const TR = parseFloat(timeRemaining);
-  if (isNaN(TR) || TR < 0 || TR > 40) return fail(400, 'Invalid time');
+  // ── 7. Validasi timeRemaining (dalam MILIDETIK) ───────────────────────────
+  const TR_MS = parseFloat(timeRemaining);
+  if (isNaN(TR_MS) || TR_MS < 0 || TR_MS > 40000) return fail(400, 'Invalid time');
 
-  // timeRemaining tidak boleh lebih besar dari sisa waktu berdasarkan token age
-  // Contoh: token berumur 35 detik → max timeRemaining = 40 - 35 = 5 detik
-  const maxPossibleRemaining = Math.max(0, 40 - ageSeconds);
-  if (TR > maxPossibleRemaining + 3) { // +3 toleransi network delay
-    console.warn(`[TIME CHEAT] ${username} — TR=${TR} tapi token age=${ageSeconds.toFixed(1)}s`);
+  const maxPossibleMs = Math.max(0, (40 - ageSeconds) * 1000) + 3000;
+  if (TR_MS > maxPossibleMs) {
+    console.warn(`[TIME CHEAT] ${username} — TR=${TR_MS}ms tapi token age=${ageSeconds.toFixed(2)}s`);
     return fail(400, 'timeRemaining tidak masuk akal.');
   }
 
   // ── 8. Re-score di server ─────────────────────────────────────────────────
   let correct = 0, wrong = 0, answered = 0;
+  let currentStreak = 0, maxStreak = 0, streakBonus = 0;
   const usedPairs = new Set();
 
   for (let i = 0; i < 20; i++) {
@@ -194,8 +193,17 @@ export default async function handler(req) {
     const ua = userAnswers[i];
     if (ua !== null && ua !== '' && ua !== undefined) {
       answered++;
-      if (parseInt(ua) === correctAns) correct++;
-      else wrong++;
+      if (parseInt(ua) === correctAns) {
+        correct++;
+        currentStreak++;
+        if (currentStreak > maxStreak) maxStreak = currentStreak;
+        if (currentStreak >= 3) streakBonus += 50;
+      } else {
+        wrong++;
+        currentStreak = 0;
+      }
+    } else {
+      currentStreak = 0;
     }
   }
 
@@ -205,20 +213,31 @@ export default async function handler(req) {
     return fail(400, 'Timing anomaly detected');
   }
 
-  // ── 10. Hitung skor final ─────────────────────────────────────────────────
-  const multipliers = { easy: 1.0, normal: 2.0, hard: 4.0, human_calculator: 8.0 };
-  const timeBonuses = { easy: 10,  normal: 25,  hard: 50,  human_calculator: 100 };
+  // ── 10. Hitung skor final — presisi milidetik ─────────────────────────────
+  // base        = correct × 500
+  // speed_bonus = TR_MS² ÷ divisor  (kuadratik — beda 100ms = beda rank)
+  // streak_bonus = +50 per jawaban benar beruntun ke-3 dst
+  // penalty     = wrong × 200
+  // final       = floor((base + speed + streak − penalty) × multiplier)
+  const scoringConfig = {
+    easy:             { multiplier: 1.0,  divisor: 1_600_000, penaltyPer: 200 },
+    normal:           { multiplier: 2.5,  divisor:   800_000, penaltyPer: 200 },
+    hard:             { multiplier: 5.0,  divisor:   400_000, penaltyPer: 200 },
+    human_calculator: { multiplier: 10.0, divisor:   200_000, penaltyPer: 200 },
+  };
+  const cfg        = scoringConfig[difficulty];
+  const baseScore  = correct * 500;
+  const speedBonus = correct > 0 ? Math.floor((TR_MS * TR_MS) / cfg.divisor) : 0;
+  const penalty    = wrong * cfg.penaltyPer;
+  const multiplier = cfg.multiplier;
 
-  const timeRem = Math.round(TR);
-  const baseScore = correct * 100;
-  const penalty   = wrong * 50;
-  const timeBonus = correct > 0 ? timeRem * timeBonuses[difficulty] : 0;
-  const multiplier = multipliers[difficulty] || 1.0;
-  let finalScore = Math.floor((baseScore - penalty + timeBonus) * multiplier);
+  let finalScore = Math.floor((baseScore + speedBonus + streakBonus - penalty) * multiplier);
   if (finalScore < 0) finalScore = 0;
 
+  const breakdown = { baseScore, speedBonus, streakBonus, penalty, multiplier, maxStreak };
+
   if (finalScore === 0) {
-    return new Response(JSON.stringify({ score: 0, submitted: false }), {
+    return new Response(JSON.stringify({ score: 0, submitted: false, breakdown }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
@@ -285,7 +304,7 @@ export default async function handler(req) {
     return fail(500, 'Network error');
   }
 
-  return new Response(JSON.stringify({ score: finalScore, submitted: true }), {
+  return new Response(JSON.stringify({ score: finalScore, submitted: true, breakdown }), {
     status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 }
