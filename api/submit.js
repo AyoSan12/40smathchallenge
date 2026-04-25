@@ -74,6 +74,36 @@ async function consumeToken(nonce, ageSeconds) {
   return { consumed: data.result === null };
 }
 
+
+// ── Helper: cooldown per IP setelah submit berhasil ─────────────────────────
+async function checkAndSetCooldown(ip, REDIS_URL, REDIS_TOKEN) {
+  if (!REDIS_URL || !REDIS_TOKEN) return { onCooldown: false };
+  const key = `submit_cooldown:${ip}`;
+  // Cek apakah cooldown aktif
+  try {
+    const checkRes = await fetch(`${REDIS_URL}/get/${key}`, {
+      headers: { Authorization: `Bearer ${REDIS_TOKEN}` },
+    });
+    if (checkRes.ok) {
+      const data = await checkRes.json();
+      if (data.result !== null) {
+        return { onCooldown: true };
+      }
+    }
+  } catch {}
+  return { onCooldown: false };
+}
+
+async function setCooldown(ip, REDIS_URL, REDIS_TOKEN, seconds = 1800) {
+  if (!REDIS_URL || !REDIS_TOKEN) return;
+  const key = `submit_cooldown:${ip}`;
+  try {
+    await fetch(`${REDIS_URL}/set/${key}/1/ex/${seconds}`, {
+      headers: { Authorization: `Bearer ${REDIS_TOKEN}` },
+    });
+  } catch {}
+}
+
 // ── Main handler ─────────────────────────────────────────────────────────────
 export default async function handler(req) {
   const corsHeaders = {
@@ -89,6 +119,11 @@ export default async function handler(req) {
     });
   }
 
+  // Extract IP for cooldown & rate checks
+  const clientIp = req.headers.get('x-real-ip')
+    || (req.headers.get('x-forwarded-for') || '').split(',')[0].trim()
+    || '127.0.0.1';
+
   let body;
   try {
     body = await req.json();
@@ -98,7 +133,7 @@ export default async function handler(req) {
     });
   }
 
-  const { username, difficulty, questions, userAnswers, timeRemaining, sessionToken } = body;
+  const { username, difficulty, questions, userAnswers, timeRemaining, sessionToken, answerTimestamps } = body;
 
   const fail = (status, msg) => new Response(JSON.stringify({ error: msg }), {
     status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -137,6 +172,39 @@ export default async function handler(req) {
     return fail(403, 'Token sudah digunakan. Mulai quiz baru untuk submit skor.');
   }
 
+  // ── 3b. Cooldown check per IP ────────────────────────────────────────────
+  const REDIS_URL_CD = (typeof process !== 'undefined' && process.env?.UPSTASH_REDIS_REST_URL)
+    || globalThis.__env__?.UPSTASH_REDIS_REST_URL;
+  const REDIS_TOKEN_CD = (typeof process !== 'undefined' && process.env?.UPSTASH_REDIS_REST_TOKEN)
+    || globalThis.__env__?.UPSTASH_REDIS_REST_TOKEN;
+
+  const { onCooldown } = await checkAndSetCooldown(clientIp, REDIS_URL_CD, REDIS_TOKEN_CD);
+  if (onCooldown) {
+    return fail(429, 'Kamu baru saja submit! Tunggu 30 menit sebelum submit lagi. Gunakan waktu itu untuk latihan 😄');
+  }
+
+  // ── 3c. Variance analysis — bot beri delay seragam, manusia tidak ────────
+  if (Array.isArray(answerTimestamps) && answerTimestamps.length >= 4) {
+    const diffs = [];
+    for (let i = 1; i < answerTimestamps.length; i++) {
+      diffs.push(answerTimestamps[i] - answerTimestamps[i-1]);
+    }
+    if (diffs.length >= 3) {
+      const mean = diffs.reduce((a,b) => a+b, 0) / diffs.length;
+      const variance = diffs.reduce((s, d) => s + (d - mean) ** 2, 0) / diffs.length;
+      const stdDev = Math.sqrt(variance);
+      const cv = mean > 0 ? stdDev / mean : 0; // Coefficient of Variation
+      // Bot dengan random delay 800-1500ms: CV biasanya 0.1-0.25 (terlalu konsisten)
+      // Manusia: CV biasanya > 0.3 karena waktu berpikir sangat bervariasi
+      // Khusus human_calculator: lebih toleran karena soalnya susah
+      const minCV = difficulty === 'human_calculator' ? 0.15 : difficulty === 'hard' ? 0.20 : 0.25;
+      if (cv < minCV && mean < 2000 && diffs.length >= 5) {
+        console.warn(`[BOT VARIANCE] ${username} — CV=${cv.toFixed(3)} mean=${mean.toFixed(0)}ms stdDev=${stdDev.toFixed(0)}ms`);
+        return fail(403, 'Pola jawaban kamu terlalu seragam. Skor ditolak.');
+      }
+    }
+  }
+
   // ── 4. Validasi username ─────────────────────────────────────────────────
   if (!username || typeof username !== 'string') return fail(400, 'No username');
   if (/[^\x00-\x7F]/.test(username)) {
@@ -145,7 +213,14 @@ export default async function handler(req) {
   if (!/^[a-z0-9_]{2,20}$/.test(username)) {
     return fail(400, 'Username hanya boleh huruf kecil, angka, dan underscore (2-20 karakter)');
   }
-  const BLOCKED_PATTERNS = ['hacker', 'cheat', 'spammer', 'fakebot', 'injector'];
+  const BLOCKED_PATTERNS = [
+    'hacker', 'cheat', 'spammer', 'fakebot', 'injector',
+    'bot', 'auto', 'script', 'hack', 'bypass', 'exploit',
+    'admin', 'root', 'system', 'null', 'undefined',
+    // kata kasar umum
+    'anjing', 'kontol', 'memek', 'ngentot', 'bangsat', 'babi', 'goblok',
+    'idiot', 'fuck', 'shit', 'ass', 'bitch', 'nigger', 'nazi',
+  ];
   if (BLOCKED_PATTERNS.some(p => username.includes(p))) {
     return fail(400, 'Username tidak diizinkan');
   }
@@ -306,6 +381,9 @@ export default async function handler(req) {
     console.error('Supabase fetch error:', e);
     return fail(500, 'Network error');
   }
+
+  // Set 30 menit cooldown untuk IP ini setelah submit berhasil
+  await setCooldown(clientIp, REDIS_URL_CD, REDIS_TOKEN_CD, 1800);
 
   return new Response(JSON.stringify({ score: finalScore, submitted: true, breakdown }), {
     status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },

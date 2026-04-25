@@ -960,7 +960,7 @@
       <span class="input-prefix">Hello, I'm</span>
       <input type="text" id="username-input" placeholder="enter_username" maxlength="20" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
     </div>
-    <div class="input-hint">lowercase · letters/numbers/underscore · 2–20 chars</div>
+    <div class="input-hint">lowercase · letters/numbers/underscore · 2–20 chars · no profanity</div>
 
     <button class="btn-start" id="btn-start" disabled>START CHALLENGE →</button>
   </div>
@@ -1107,6 +1107,39 @@
 <div id="toast"></div>
 
 <script>
+// ======================== DOM ID OBFUSCATION ========================
+// Generate random IDs per session — bot scripts hardcode IDs like #question-display
+const _domIds = (() => {
+  const rand = () => '_' + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6);
+  return {
+    questionDisplay: rand(),
+    answerInput: rand(),
+    honeypot: rand(),
+  };
+})();
+
+// Rename actual DOM elements at runtime
+document.addEventListener('DOMContentLoaded', () => {
+  const qd = document.getElementById('question-display');
+  const ai = document.getElementById('answer-input');
+  if (qd) qd.id = _domIds.questionDisplay;
+  if (ai) ai.id = _domIds.answerInput;
+
+  // Inject honeypot — hidden from real users, visible to DOM-scraping bots
+  const hp = document.createElement('input');
+  hp.type = 'text';
+  hp.id = _domIds.honeypot;
+  hp.name = 'answer';           // looks like the real answer field
+  hp.autocomplete = 'off';
+  hp.tabIndex = -1;
+  hp.setAttribute('aria-hidden', 'true');
+  hp.style.cssText = 'position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;';
+  document.body.appendChild(hp);
+});
+
+// Helper to get obfuscated element
+function _el(key) { return document.getElementById(_domIds[key]); }
+
 // ======================== STATE ========================
 const state = {
   username: '',
@@ -1114,9 +1147,11 @@ const state = {
   gameStartTime: null,
   questions: [],
   answers: [],
+  answerTimestamps: [],  // track per-answer timing for variance analysis
   sessionToken: '',
   focusLostCount: 0,
   cheated: false,
+  honeypotTripped: false,
   quizActive: false,
   timerInterval: null,
   sessionStartTime: 0,
@@ -1178,6 +1213,7 @@ async function submitScore(entry, difficulty) {
       userAnswers: state.answers.map(a => (a.skipped || a.given === null) ? null : a.given),
       timeRemaining: Math.round(state.timeRemaining * 1000), // kirim dalam MILIDETIK
       sessionToken: state.sessionToken,
+      answerTimestamps: state.answerTimestamps, // for variance analysis server-side
     };
     const res = await fetch('/api/submit', {
       method: 'POST',
@@ -1433,22 +1469,23 @@ function beginQuiz() {
   startTimer();
 
   // Block paste/copy on input
-  const inp = document.getElementById('answer-input');
+  const inp = _el('answerInput');
   inp.addEventListener('paste', (e) => e.preventDefault());
   inp.addEventListener('copy', (e) => e.preventDefault());
 }
 
 function showQuestion(idx) {
   state.currentQ = idx;
+  state.answerTimestamps.push(Date.now()); // track when each question shown
   const q = state.questions[idx];
-  const display = document.getElementById('question-display');
+  const display = _el('questionDisplay');
   display.innerHTML = `${q.question} <span class="equals">=</span> ?`;
   display.style.animation = 'none';
   requestAnimationFrame(() => { display.style.animation = ''; });
 
   document.getElementById('q-current').textContent = idx + 1;
-  document.getElementById('answer-input').value = '';
-  document.getElementById('answer-input').focus();
+  _el('answerInput').value = '';
+  _el('answerInput').focus();
 }
 
 function startTimer() {
@@ -1478,7 +1515,15 @@ function startTimer() {
 
 function submitAnswer() {
   if (!state.quizActive) return;
-  const inp = document.getElementById('answer-input');
+  // Honeypot check — bots fill hidden fields
+  const hp = _el('honeypot');
+  if (hp && hp.value !== '') {
+    state.honeypotTripped = true;
+    state.cheated = true;
+    endQuiz();
+    return;
+  }
+  const inp = _el('answerInput');
   const raw = inp.value.trim();
   const given = raw === '' ? null : parseInt(raw, 10);
   const correct = state.questions[state.currentQ].answer;
@@ -1637,6 +1682,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
 
+  // Honeypot monitor — real users never touch this
+  const _hpWatcher = setInterval(() => {
+    const hp = _el('honeypot');
+    if (hp && hp.value !== '') {
+      clearInterval(_hpWatcher);
+      state.honeypotTripped = true;
+      if (state.quizActive) { state.cheated = true; endQuiz(); }
+    }
+  }, 500);
+
   // Pre-fill
   const savedUsername = localStorage.getItem('lastUsername') || '';
   usernameInput.value = savedUsername;
@@ -1671,9 +1726,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('diff-back-btn').addEventListener('click', () => showScreen('home'));
 
-  // Answer input — Enter to submit
-  document.getElementById('answer-input').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') submitAnswer();
+  // Answer input — Enter to submit (use live lookup via _el since ID is obfuscated)
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && state.quizActive) submitAnswer();
   });
 
   // Results buttons
