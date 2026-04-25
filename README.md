@@ -22,8 +22,12 @@ This app turns that debate into a challenge anyone can take — now with advance
 - **Live global leaderboard** — powered by Supabase, no login required
 - **Enterprise-grade anti-cheat system** — multi-layered security to prevent bots and cheaters
 - **Server-side validation** — all scores validated and recalculated on server
-- **Rate limiting** — 5 attempts per 10 minutes per IP address
-- **Bot detection** — detects inhumanly fast completion times (<8 seconds for 20 questions)
+- **HMAC-signed session tokens** — cryptographically signed tokens issued by `/api/start`, verified server-side before any score is accepted
+- **Cloudflare Turnstile** — invisible bot CAPTCHA, runs silently in background without disrupting user experience
+- **Rate limiting** — 5 submissions per 10 minutes per IP, 10 start requests per 10 minutes per IP
+- **Bot detection** — blocks known bot User-Agents (curl, python, wget, axios, etc.) at middleware level
+- **Origin & Referer validation** — only requests from allowed domains are processed
+- **Timing anomaly detection** — detects inhumanly fast completion times (<8 seconds for 20 questions)
 - **Mobile-friendly** — numeric keypad on mobile, responsive layout
 - **Zero client-side dependencies** — pure HTML/CSS/JS frontend
 - **Server-side Edge Functions** — powered by Vercel Edge Runtime
@@ -38,22 +42,45 @@ This app turns that debate into a challenge anyone can take — now with advance
 |-------|------------|--------------|
 | **Client-side** | Tab switching detection | `visibilitychange` + `blur` events — 1st: warning, 2nd: score voided |
 | **Client-side** | Input manipulation | Paste/copy blocked, DevTools shortcuts (F12, Ctrl+Shift+I/J/C/U) suppressed |
+| **Middleware** | Bot User-Agent blocking | Blocks curl, python, wget, axios, postman, and 10+ other script tools at edge |
+| **Middleware** | Origin/Referer validation | Rejects requests not originating from the allowed app domain |
+| **Middleware** | Content-Type enforcement | POST requests must send `application/json`, rejects raw form submissions |
+| **Middleware** | Dual rate limiting | `/api/start`: 10 req/10min — `/api/submit`: 5 req/10min — per IP via Redis sliding window |
+| **Server-side** | HMAC session token | Token issued by `/api/start`, cryptographically signed with SHA-256 HMAC, verified before scoring |
+| **Server-side** | Session expiry | Tokens expire after 180 seconds — prevents replay attacks |
+| **Server-side** | Cloudflare Turnstile | Invisible CAPTCHA verified server-side on every submission |
 | **Server-side** | Timing validation | Minimum 8 seconds for 20 questions (0.4s per question human minimum) |
+| **Server-side** | Timing anomaly detection | Rejects if answered questions × 0.4s > elapsed time |
 | **Server-side** | Score recalculation | Server recalculates score from raw answers, prevents client manipulation |
 | **Server-side** | Question validation | Checks question difficulty ranges and duplicate questions |
-| **Network** | Rate limiting | 5 submissions per 10 minutes per IP address |
 | **Database** | Conflict resolution | UPSERT with `on_conflict=username,difficulty` for highest score per user |
+| **Database** | Row Level Security | Supabase RLS enabled — service key never exposed to client |
 
 ### Server-Side Security Stack
 
 ```javascript
+// Middleware Layer: middleware.js (runs at edge before all API requests)
+1. Bot User-Agent detection (curl, python, wget, axios, postman, etc.)
+2. Origin + Referer whitelist validation (APP_ORIGIN env var)
+3. Content-Type enforcement (must be application/json for POST)
+4. Dual rate limiting via Redis sliding window:
+   - /api/start  → 10 requests per 10 minutes per IP
+   - /api/submit → 5 requests per 10 minutes per IP
+
+// API Layer: /api/start.js
+1. Issues HMAC-SHA256 signed session token (timestamp + nonce + signature)
+2. Token valid for 180 seconds only
+
 // API Layer: /api/submit.js
-1. Rate limiting middleware (5 requests/10 minutes per IP)
-2. Time validation (minimum 8 seconds for 20 questions)
-3. Username validation (lowercase, alphanumeric, 2-20 chars)
-4. Question validation (difficulty ranges, no duplicates)
-5. Server-side score recalculation
-6. Database UPSERT with conflict resolution
+1. Cloudflare Turnstile token verification (server-to-server)
+2. HMAC session token verification (constant-time comparison)
+3. Session age check (rejects if > 180 seconds or < 8 seconds)
+4. Username validation (lowercase, alphanumeric, 2-20 chars, blocked patterns)
+5. Difficulty validation (whitelist: easy, normal, hard, human_calculator)
+6. Question array validation (exactly 20, no duplicates, correct difficulty ranges)
+7. Timing anomaly check (answered × 0.4s must not exceed elapsed time)
+8. Server-side score recalculation (client score is never trusted)
+9. Database UPSERT — only updates if new score is higher
 ```
 
 ### Real-Time Bot Detection
@@ -112,20 +139,27 @@ Skipped questions = 0 penalty, 0 bonus.
 
 ### Backend (Server-side)
 - **Vercel Edge Functions** - Global edge network, low latency
-- **API Endpoint** (`/api/submit.js`) - Score validation and processing
-- **Middleware** (`middleware.js`) - Rate limiting and IP filtering
-- **Database** - Supabase PostgreSQL with Row Level Security
+- **Session API** (`/api/start.js`) - Issues HMAC-SHA256 signed session tokens before quiz begins
+- **Submit API** (`/api/submit.js`) - Full score validation pipeline (Turnstile → HMAC → timing → scoring → DB)
+- **Middleware** (`middleware.js`) - Bot UA blocking, origin validation, Content-Type enforcement, dual rate limiting
+- **Database** - Supabase PostgreSQL with Row Level Security (RLS)
 
 ### Data Flow
 ```
-1. Client generates questions locally
-2. User answers 20 questions in 40 seconds
-3. Client sends raw answers + startTime to /api/submit
-4. Server validates timing (minimum 8 seconds)
-5. Server recalculates score from raw answers
-6. Server validates questions (difficulty ranges, no duplicates)
-7. Server stores score via UPSERT (keeps highest score per user/difficulty)
-8. Client receives validated score and updates leaderboard
+1.  Client loads page → Cloudflare Turnstile runs invisibly in background
+2.  User enters username → clicks START
+3.  Client calls /api/start → server issues HMAC-signed session token
+4.  Client generates 20 questions locally
+5.  User answers questions in 40 seconds
+6.  Client sends raw answers + sessionToken + turnstileToken to /api/submit
+7.  Middleware checks: bot UA, origin, Content-Type, rate limit
+8.  Server verifies Turnstile token with Cloudflare (server-to-server)
+9.  Server verifies HMAC session token signature and age (8s–180s window)
+10. Server validates username, difficulty, questions (ranges + no duplicates)
+11. Server checks timing anomaly (answers vs elapsed time)
+12. Server recalculates score from scratch (client score ignored)
+13. Server checks existing score — only updates if new score is higher
+14. Client receives validated score and updates leaderboard
 ```
 
 ---
@@ -137,8 +171,10 @@ Skipped questions = 0 penalty, 0 bonus.
 | **Frontend** | HTML5 + CSS3 + Vanilla JS | Single-file application |
 | **Backend** | Vercel Edge Functions | Server-side validation |
 | **Database** | Supabase (PostgreSQL) | Leaderboard storage |
-| **Rate Limiting** | @upstash/ratelimit + Redis | 5 requests/10 minutes per IP |
-| **Security** | Custom anti-cheat middleware | Bot detection and prevention |
+| **Rate Limiting** | @upstash/ratelimit + Redis | Dual limits: 10/10min (start) + 5/10min (submit) per IP |
+| **Bot Protection** | Cloudflare Turnstile | Invisible CAPTCHA, server-side token verification |
+| **Session Security** | HMAC-SHA256 | Cryptographically signed session tokens, 180s expiry |
+| **Security** | Custom anti-cheat middleware | UA blocking, origin validation, timing checks |
 | **Deployment** | Vercel | Global CDN + Edge Functions |
 
 ---
@@ -192,12 +228,17 @@ create policy "Anyone can insert scores"
 4. Get your **Project URL** and **Service Role Key** from **Project Settings → API**
 
 ### Step 3 — Configure Environment
-Create `.env.local` file for Vercel deployment:
+Set the following in **Vercel Dashboard → Settings → Environment Variables**:
 
 ```env
+SESSION_SECRET=<random 32+ char string — generate with: openssl rand -hex 32>
 SUPABASE_URL=https://xxxxxxxxxx.supabase.co
-SUPABASE_SERVICE_KEY=sb_service_xxxxxxxxxxxxxxxx
+SUPABASE_SERVICE_KEY=<service_role key from Supabase → Project Settings → API>
+TURNSTILE_SECRET_KEY=<Secret Key from Cloudflare Turnstile dashboard>
+APP_ORIGIN=https://your-app.vercel.app
 ```
+
+> ⚠️ Never commit these to Git. All secrets must be set as environment variables only.
 
 ### Step 4 — Configure Frontend
 Edit `index.html` and update:
@@ -225,8 +266,10 @@ const SUPABASE_ANON_KEY = 'sb_publishable_...';
 ```
 /
 ├── index.html              # Complete frontend application
-├── submit.js              # Server-side score validator (Edge Function)
-├── middleware.js          # Rate limiting middleware
+├── api/
+│   ├── start.js           # HMAC session token issuer (Edge Function)
+│   └── submit.js          # Server-side score validator (Edge Function)
+├── middleware.js          # Bot detection, origin check, dual rate limiting
 ├── package.json          # Dependencies for Edge Functions
 ├── README.md             # This documentation
 └── .env.local           # Environment variables (not in git)
@@ -279,16 +322,42 @@ const ratelimit = new Ratelimit({
 });
 ```
 
-### 2. Server-Side Score Validation
+### 2. HMAC Session Token Flow
 ```javascript
-// submit.js - Validates and recalculates everything
-const timeElapsed = (Date.now() - startTime) / 1000;
-if (timeElapsed < 8 && questions.length >= 15) {
-  return error("Too fast for human!");
-}
+// /api/start.js — issues token before quiz begins
+const payload = `${timestamp}.${nonce}`;
+const signature = HMAC_SHA256(payload, SESSION_SECRET);
+const sessionToken = `${payload}.${signature}`;
+
+// /api/submit.js — verifies token with constant-time comparison
+const { ok, ageSeconds } = await verifySessionToken(sessionToken, SESSION_SECRET);
+if (!ok) return error(403, "Invalid session token");
+if (ageSeconds > 180) return error(400, "Session expired");
+if (ageSeconds < 8) return error(403, "Too fast — bot detected");
 ```
 
-### 3. Database Conflict Resolution
+### 3. Cloudflare Turnstile Verification
+```javascript
+// submit.js - Server-to-server verification with Cloudflare
+const formData = new FormData();
+formData.append('secret', TURNSTILE_SECRET_KEY);
+formData.append('response', turnstileToken);
+formData.append('remoteip', clientIP);
+const result = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+  method: 'POST', body: formData
+});
+// If not success → 403 Verifikasi bot gagal
+```
+
+### 4. Server-Side Score Validation
+```javascript
+// submit.js - Validates and recalculates everything server-side
+// Client score is completely ignored
+if (ageSeconds < 8) return error("Too fast for human!");
+if (answered > 0 && ageSeconds < answered * 0.4) return error("Timing anomaly");
+```
+
+### 5. Database Conflict Resolution
 ```javascript
 // UPSERT - keeps highest score per user per difficulty
 fetch(`${SUPABASE_URL}/rest/v1/scores?on_conflict=username,difficulty`, {
@@ -298,7 +367,7 @@ fetch(`${SUPABASE_URL}/rest/v1/scores?on_conflict=username,difficulty`, {
 })
 ```
 
-### 4. Username Normalization
+### 6. Username Normalization
 ```javascript
 // Ensures case-insensitive leaderboard
 username: username.toLowerCase().trim()
