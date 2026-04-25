@@ -162,7 +162,9 @@ export default async function handler(req) {
   const TR_MS = parseFloat(timeRemaining);
   if (isNaN(TR_MS) || TR_MS < 0 || TR_MS > 40000) return fail(400, 'Invalid time');
 
-  const maxPossibleMs = Math.max(0, (40 - ageSeconds) * 1000) + 3000;
+  // ageSeconds mencakup: waktu di layar difficulty + countdown 3s + waktu quiz 40s
+  // Tambah buffer 60 detik untuk waktu user memilih difficulty
+  const maxPossibleMs = Math.max(0, (40 - (ageSeconds - 60)) * 1000) + 5000;
   if (TR_MS > maxPossibleMs) {
     console.warn(`[TIME CHEAT] ${username} — TR=${TR_MS}ms tapi token age=${ageSeconds.toFixed(2)}s`);
     return fail(400, 'timeRemaining tidak masuk akal.');
