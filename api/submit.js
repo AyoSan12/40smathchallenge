@@ -228,6 +228,11 @@ export default async function handler(req) {
     || globalThis.__env__?.SUPABASE_URL;
   const SUPABASE_SERVICE_KEY = (typeof process !== 'undefined' && process.env?.SUPABASE_SERVICE_KEY)
     || globalThis.__env__?.SUPABASE_SERVICE_KEY;
+  const CURRENT_SEASON = parseInt(
+    (typeof process !== 'undefined' && process.env?.CURRENT_SEASON)
+    || globalThis.__env__?.CURRENT_SEASON
+    || '2'
+  );
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
     console.error('Missing Supabase env vars');
@@ -252,6 +257,7 @@ export default async function handler(req) {
           p_wrong: wrong,
           p_time_remaining: timeRem,
           p_session_token: sessionToken,
+          p_season: CURRENT_SEASON,
         }),
       }
     );
