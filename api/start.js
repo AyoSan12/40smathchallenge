@@ -1,5 +1,3 @@
-import crypto from 'crypto';
-
 export const config = {
   runtime: 'edge',
 };
