@@ -1176,23 +1176,16 @@ async function submitScore(entry, difficulty) {
       difficulty: state.difficulty,
       questions: state.questions,
       userAnswers: state.answers.map(a => (a.skipped || a.given === null) ? null : a.given),
-      timeRemaining: Math.round(state.timeRemaining * 1000),
+      timeRemaining: Math.round(state.timeRemaining * 1000), // kirim dalam MILIDETIK
       sessionToken: state.sessionToken,
     };
-    console.log('[SUBMIT] token:', state.sessionToken ? state.sessionToken.slice(0,20)+'...' : 'KOSONG!');
-    console.log('[SUBMIT] difficulty:', payload.difficulty, 'timeRemaining:', payload.timeRemaining);
     const res = await fetch('/api/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    const data = await res.json();
-    console.log('[SUBMIT] server HTTP', res.status, ':', JSON.stringify(data));
-    return data;
-  } catch (e) {
-    console.error('[SUBMIT] error:', e);
-    return { ok: false };
-  }
+    return await res.json();
+  } catch { return { ok: false }; }
 }
 
 // ======================== QUESTION MODULES ========================
@@ -1225,11 +1218,12 @@ const QuestionModules = {
         if (difficulty === 'human_calculator' && (a * b > 230)) continue;
         if (difficulty === 'human_calculator' && (b === 10)) continue;
 
-        // Shuffle operands so both orderings can appear
+        // Dedup key pakai min×max agar konsisten dengan validasi server
+        const pairKey = [Math.min(a, b), Math.max(a, b)].join('x');
+        if (used.has(pairKey)) continue;
+        used.add(pairKey);
+        // Shuffle tampilan operand (2×9 atau 9×2) tapi pair sudah unik
         const [oa, ob] = Math.random() > 0.5 ? [a, b] : [b, a];
-        const key = `${oa}x${ob}`;
-        if (used.has(key)) continue;
-        used.add(key);
 
         questions.push({ question: `${oa} × ${ob}`, answer: oa * ob });
       }
