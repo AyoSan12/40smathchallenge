@@ -941,7 +941,7 @@
     .diff-card { padding: 24px 28px; }
   }
 </style>
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onloadTurnstileCallback" async defer></script>
 </head>
 <body>
 
@@ -1637,7 +1637,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof turnstile === 'undefined') return;
     if (turnstileWidgetId !== null) return; // sudah dirender
     turnstileWidgetId = turnstile.render('#turnstile-widget', {
-      sitekey: '1x00000000000000000000AA', // Test sitekey — ganti ke sitekey asli setelah domain terdaftar di Cloudflare
+      sitekey: '0x4AAAAAADCvgX50R5TBLsNc',
       theme: 'dark',
       callback: function(token) {
         turnstileToken = token;
@@ -1654,11 +1654,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Coba render saat script Turnstile sudah load
+  // Cloudflare Turnstile memanggil window.onloadTurnstileCallback saat siap
+  // Ini lebih reliable dari 'load' event karena script-nya async
+  window.onloadTurnstileCallback = renderTurnstile;
+
+  // Fallback jika callback tidak dipanggil (script sudah load sebelum ini)
   if (typeof turnstile !== 'undefined') {
     renderTurnstile();
-  } else {
-    window.addEventListener('load', renderTurnstile);
   }
 
   function updateStartBtn() {
@@ -1666,13 +1668,12 @@ document.addEventListener('DOMContentLoaded', () => {
     btnStart.disabled = !(usernameValid && turnstileToken);
   }
 
-  // Turnstile fallback: jika setelah 6 detik token masih kosong
-  // (script tidak load ATAU widget gagal render karena sitekey/domain issue),
+  // Fallback: jika setelah 6 detik token masih kosong karena apapun,
   // sembunyikan widget dan izinkan tombol diklik.
-  // Keamanan tetap terjaga oleh HMAC token + rate limit + re-score di server.
+  // Keamanan tetap terjaga oleh HMAC + rate limit + re-score di server.
   setTimeout(() => {
     if (!turnstileToken) {
-      console.warn('[Turnstile] Token masih kosong setelah 6 detik — aktifkan fallback');
+      console.warn('[Turnstile] Token kosong setelah 6 detik — aktifkan fallback');
       turnstileToken = 'turnstile-unavailable';
       const widget = document.getElementById('turnstile-widget');
       if (widget) widget.style.display = 'none';
