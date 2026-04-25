@@ -275,7 +275,7 @@ export default async function handler(req) {
           p_difficulty: difficulty,
           p_correct: correct,
           p_wrong: wrong,
-          p_time_remaining: timeRem,
+          p_time_remaining: TR_MS,
           p_session_token: sessionToken,
           p_season: CURRENT_SEASON,
         }),
