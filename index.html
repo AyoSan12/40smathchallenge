@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>40s Math Challenge</title>
+<!-- Cloudflare Turnstile — ganti data-sitekey dengan Site Key kamu dari Cloudflare Dashboard -->
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -32,7 +34,6 @@
     position: relative;
   }
 
-  /* Animated grid background */
   body::before {
     content: '';
     position: fixed;
@@ -88,7 +89,6 @@
     width: 100%;
   }
 
-
   .home-title {
     font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
     font-size: clamp(56px, 12vw, 120px);
@@ -111,7 +111,6 @@
     margin-top: 16px;
     letter-spacing: 2px;
   }
-
 
   .home-form {
     width: 100%;
@@ -175,6 +174,13 @@
     font-family: 'Space Grotesk', sans-serif;
   }
 
+  /* Turnstile widget container */
+  .turnstile-wrap {
+    margin-top: 16px;
+    display: flex;
+    justify-content: center;
+  }
+
   .btn-start {
     width: 100%;
     padding: 18px;
@@ -206,7 +212,6 @@
   .btn-start:active { transform: translateY(0); }
   .btn-start:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; }
 
-  /* Leaderboard on home */
   .leaderboard-section {
     width: 100%;
     max-width: 480px;
@@ -264,22 +269,15 @@
   }
 
   .leaderboard-table-container {
-    max-height: 500px; /* Batasi tinggi tabel */
-    overflow-y: auto;  /* Tambahkan scroll vertical */
+    max-height: 500px;
+    overflow-y: auto;
     border-radius: 12px;
     background: var(--surface);
     border: 1px solid var(--border);
   }
-  
-  /* Mempercantik scrollbar untuk browser Chrome/Edge */
-  .leaderboard-table-container::-webkit-scrollbar {
-    width: 6px;
-  }
-  
-  .leaderboard-table-container::-webkit-scrollbar-thumb {
-    background: var(--border);
-    border-radius: 10px;
-  }
+
+  .leaderboard-table-container::-webkit-scrollbar { width: 6px; }
+  .leaderboard-table-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
 
   .leaderboard-list {
     display: flex;
@@ -445,24 +443,6 @@
     color: var(--muted);
     line-height: 1.5;
     font-family: 'Space Grotesk', sans-serif;
-  }
-
-  .diff-meta {
-    display: flex;
-    gap: 16px;
-    margin-top: 12px;
-  }
-
-  .diff-meta-item {
-    font-size: 11px;
-    color: var(--muted);
-    font-family: 'Space Grotesk', sans-serif;
-  }
-
-  .diff-meta-item strong {
-    color: var(--text);
-    display: block;
-    font-size: 13px;
   }
 
   .back-btn {
@@ -823,16 +803,9 @@
     align-items: center;
   }
 
-  .review-stats {
-    display: flex;
-    gap: 12px;
-  }
+  .review-stats { display: flex; gap: 12px; }
 
-  .review-stat {
-    font-size: 11px;
-    font-family: 'Space Grotesk', sans-serif;
-  }
-
+  .review-stat { font-size: 11px; font-family: 'Space Grotesk', sans-serif; }
   .review-stat .c { color: var(--green); }
   .review-stat .w { color: var(--accent3); }
 
@@ -912,8 +885,6 @@
 
   .btn-secondary:hover { border-color: var(--text); }
 
-
-
   /* Toast */
   #toast {
     position: fixed;
@@ -933,9 +904,6 @@
   }
   #toast.show { transform: translateX(-50%) translateY(0); }
 
-
-
-  /* Responsive */
   @media (min-width: 600px) {
     .diff-grid { gap: 16px; }
     .diff-card { padding: 24px 28px; }
@@ -960,6 +928,13 @@
       <input type="text" id="username-input" placeholder="enter_username" maxlength="20" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
     </div>
     <div class="input-hint">lowercase · letters/numbers/underscore · 2–20 chars</div>
+
+    <!-- Cloudflare Turnstile widget -->
+    <!-- GANTI data-sitekey dengan Site Key kamu dari Cloudflare Turnstile Dashboard -->
+    <div class="turnstile-wrap">
+      <div class="cf-turnstile" data-sitekey="0x4AAAAAADCvgX50R5TBLsNc" data-theme="dark" data-callback="onTurnstileSuccess" data-expired-callback="onTurnstileExpired"></div>
+    </div>
+
     <button class="btn-start" id="btn-start" disabled>START CHALLENGE →</button>
   </div>
 
@@ -1105,6 +1080,20 @@
 <div id="toast"></div>
 
 <script>
+// ======================== TURNSTILE CALLBACKS ========================
+// Dipanggil otomatis oleh widget Cloudflare Turnstile
+let turnstileToken = null;
+
+function onTurnstileSuccess(token) {
+  turnstileToken = token;
+  updateStartBtn();
+}
+
+function onTurnstileExpired() {
+  turnstileToken = null;
+  updateStartBtn();
+}
+
 // ======================== STATE ========================
 const state = {
   username: '',
@@ -1124,49 +1113,47 @@ const state = {
   activeTab: 'easy',
 };
 
-// ======================== SUPABASE CONFIG (read-only, leaderboard display) ========================
-  // NOTE: Anon key hanya untuk READ leaderboard. Score submission lewat /api/submit (server-side).
-  const SUPABASE_URL = 'https://nsstfsmbdgfatwhzcijx.supabase.co';
-  const SUPABASE_ANON_KEY = 'sb_publishable_ovrT1TrorqmgmPvHRSfLFA_sJ84lMF1';
+// ======================== SUPABASE CONFIG (read-only untuk leaderboard) ========================
+// Anon key aman di-expose karena RLS memastikan tidak ada yang bisa write via key ini
+const SUPABASE_URL = 'https://nsstfsmbdgfatwhzcijx.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_ovrT1TrorqmgmPvHRSfLFA_sJ84lMF1';
 
 // ======================== SUPABASE LEADERBOARD ========================
 const LB_CACHE_KEY = 'lb_cache';
 const LB_CACHE_TTL = 5 * 60 * 1000; // 5 menit
 
 async function fetchLeaderboard(forceRefresh = false) {
-    // Cek cache dulu — hemat Supabase request
-    if (!forceRefresh) {
-      try {
-        const raw = localStorage.getItem(LB_CACHE_KEY);
-        if (raw) {
-          const { ts, data } = JSON.parse(raw);
-          if (Date.now() - ts < LB_CACHE_TTL) return data;
-        }
-      } catch {}
-    }
-
+  if (!forceRefresh) {
     try {
-      const diffs = ['easy', 'normal', 'hard', 'human_calculator'];
-      const board = { easy: [], normal: [], hard: [], human_calculator: [] };
-      await Promise.all(diffs.map(async (diff) => {
-        // Ubah limit menjadi 100
-        const res = await fetch(
-          `${SUPABASE_URL}/rest/v1/scores?select=username,score,correct,difficulty&difficulty=eq.${diff}&order=score.desc&limit=100`,
-          { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
-        );
-        if (res.ok) board[diff] = await res.json();
-      }));
-
-      // Simpan ke cache
-      try {
-        localStorage.setItem(LB_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: board }));
-      } catch {}
-
-      return board;
-    } catch { return null; }
+      const raw = localStorage.getItem(LB_CACHE_KEY);
+      if (raw) {
+        const { ts, data } = JSON.parse(raw);
+        if (Date.now() - ts < LB_CACHE_TTL) return data;
+      }
+    } catch {}
   }
 
-async function submitScore(entry, difficulty) {
+  try {
+    const diffs = ['easy', 'normal', 'hard', 'human_calculator'];
+    const board = { easy: [], normal: [], hard: [], human_calculator: [] };
+    await Promise.all(diffs.map(async (diff) => {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/scores?select=username,score,correct,difficulty&difficulty=eq.${diff}&order=score.desc&limit=100`,
+        { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
+      );
+      if (res.ok) board[diff] = await res.json();
+    }));
+
+    try {
+      localStorage.setItem(LB_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: board }));
+    } catch {}
+
+    return board;
+  } catch { return null; }
+}
+
+// ── PERBAIKAN KRITIS: submitScore sekarang fetch /api/start dulu untuk session token ──
+async function submitScore() {
   try {
     const payload = {
       username: state.username,
@@ -1175,14 +1162,17 @@ async function submitScore(entry, difficulty) {
       userAnswers: state.answers.map(a => (a.skipped || a.given === null) ? null : a.given),
       timeRemaining: Math.round(state.timeRemaining),
       sessionToken: state.sessionToken,
-      startTime: state.gameStartTime,
+      // Kirim Turnstile token ke server untuk diverifikasi
+      turnstileToken: turnstileToken,
     };
     const res = await fetch('/api/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    return await res.json();
+    const data = await res.json();
+    if (res.ok) return { ok: true, ...data };
+    return { ok: false, error: data.error };
   } catch { return { ok: false }; }
 }
 
@@ -1210,13 +1200,11 @@ const QuestionModules = {
         const a = randInt(r.a[0], r.a[1]);
         const b = randInt(r.b[0], r.b[1]);
 
-        // Rules
         if (difficulty === 'easy' && (a * b >= 50)) continue;
         if (difficulty === 'hard' && (a === 10 || b === 10)) continue;
         if (difficulty === 'human_calculator' && (a * b > 230)) continue;
         if (difficulty === 'human_calculator' && (b === 10)) continue;
 
-        // Shuffle operands so both orderings can appear
         const [oa, ob] = Math.random() > 0.5 ? [a, b] : [b, a];
         const key = `${oa}x${ob}`;
         if (used.has(key)) continue;
@@ -1225,7 +1213,6 @@ const QuestionModules = {
         questions.push({ question: `${oa} × ${ob}`, answer: oa * ob });
       }
 
-      // Fisher-Yates shuffle
       for (let i = questions.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [questions[i], questions[j]] = [questions[j], questions[i]];
@@ -1234,7 +1221,6 @@ const QuestionModules = {
       return questions.slice(0, count);
     }
   }
-  // Future: addition, division, mixed, fractions...
 };
 
 function randInt(min, max) {
@@ -1242,6 +1228,8 @@ function randInt(min, max) {
 }
 
 // ======================== SCORING ========================
+// PENTING: Formula ini harus IDENTIK dengan yang ada di submit.js (server)
+// Server formula: base=correct*100, bonus=correct*TR*2, penalty=wrong*20, mult={easy:1.0,normal:1.5,hard:2.0,hc:3.0}
 function calculateScore(correct, wrong, timeRemaining, difficulty) {
   const mult = { easy: 1.0, normal: 1.5, hard: 2.0, human_calculator: 3.0 }[difficulty];
   const base = correct * 100;
@@ -1297,12 +1285,9 @@ function escHtml(str) {
 
 // ======================== ANTI-CHEAT ========================
 function setupAntiCheat() {
-  // Tab switch / blur
   document.addEventListener('visibilitychange', onFocusLost);
   window.addEventListener('blur', onFocusLost);
 
-  // Right-click (quiz only — handled in quiz start)
-  // DevTools keys
   document.addEventListener('keydown', (e) => {
     if (!state.quizActive) return;
     if (
@@ -1359,24 +1344,40 @@ function showCheatWarning(isFinal) {
 }
 
 // ======================== QUIZ LOGIC ========================
-function startCountdown(difficulty) {
+async function startCountdown(difficulty) {
   state.difficulty = difficulty;
-  state.sessionToken = Math.random().toString(36).slice(2);
   state.focusLostCount = 0;
   state.cheated = false;
   state.currentQ = 0;
   state.answers = [];
   state.timeRemaining = 40;
   state.quizActive = false;
+  state.sessionToken = ''; // reset dulu
 
   // Generate questions
   state.questions = QuestionModules.multiplication.generate(difficulty, 20);
 
   showScreen('quiz');
 
-  // Set up context menu block for quiz
   document._quizContextBlock = (e) => { if (state.quizActive) e.preventDefault(); };
   document.addEventListener('contextmenu', document._quizContextBlock);
+
+  // ── PERBAIKAN KRITIS: Fetch session token dari server SEBELUM countdown ──
+  // Session token harus dari server (HMAC-signed) agar timing bisa diverifikasi server
+  try {
+    const res = await fetch('/api/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      state.sessionToken = data.sessionToken || '';
+    }
+  } catch {
+    // Gagal fetch token — quiz tetap bisa jalan tapi tidak bisa submit ke leaderboard
+    console.warn('Could not fetch session token from /api/start');
+  }
 
   // Countdown
   const overlay = document.getElementById('countdown-overlay');
@@ -1405,7 +1406,6 @@ function beginQuiz() {
   state.sessionStartTime = Date.now();
   state.gameStartTime = Date.now();
 
-  // Update diff label
   const labels = { easy:'EASY', normal:'NORMAL', hard:'HARD', human_calculator:'HUMAN CALC' };
   document.getElementById('quiz-diff-label').textContent = labels[state.difficulty];
   document.getElementById('q-total').textContent = state.questions.length;
@@ -1413,7 +1413,6 @@ function beginQuiz() {
   showQuestion(0);
   startTimer();
 
-  // Block paste/copy on input
   const inp = document.getElementById('answer-input');
   inp.addEventListener('paste', (e) => e.preventDefault());
   inp.addEventListener('copy', (e) => e.preventDefault());
@@ -1445,14 +1444,12 @@ function startTimer() {
     display.textContent = secs;
     bar.style.width = (rem / 40 * 100) + '%';
 
-    // Color states
     const colorClass = rem <= 10 ? 'red' : rem <= 20 ? 'yellow' : '';
     display.className = 'timer-display ' + colorClass;
     bar.className = 'timer-bar ' + colorClass;
 
     if (rem <= 0) {
       clearInterval(state.timerInterval);
-      // Fill remaining questions as skipped
       while (state.answers.length < state.questions.length) {
         state.answers.push({ given: null, correct: state.questions[state.answers.length].answer, skipped: true });
       }
@@ -1503,7 +1500,6 @@ async function showResults() {
   const timeRem = Math.round(state.timeRemaining);
   const scoring = calculateScore(correct, wrong, timeRem, state.difficulty);
 
-  // Render score breakdown
   const diffLabels = { easy:'Easy', normal:'Normal', hard:'Hard', human_calculator:'Human Calculator' };
   document.getElementById('score-rows').innerHTML = `
     <div class="score-row"><span class="label">Base (${correct} correct × 100)</span><span class="value">${scoring.base.toLocaleString()}</span></div>
@@ -1513,7 +1509,6 @@ async function showResults() {
     <div class="score-row total"><span class="label">FINAL (${diffLabels[state.difficulty]})</span><span class="value">${scoring.final.toLocaleString()}</span></div>
   `;
 
-  // Render review table
   document.getElementById('res-correct').textContent = correct;
   document.getElementById('res-wrong').textContent = wrong;
   const tbody = document.getElementById('review-tbody');
@@ -1530,26 +1525,26 @@ async function showResults() {
     </tr>`;
   }).join('');
 
-  // Submit score to leaderboard (if not cheated)
+  // Submit score ke server (jika tidak cheating)
   let rank = null;
   if (!state.cheated && scoring.final > 0) {
-    const result = await submitScore({}, state.difficulty);
-    if (result.ok) {
-      // Force refresh setelah submit agar skor baru langsung muncul
+    const result = await submitScore();
+    if (result.ok && result.submitted) {
       const updated = await fetchLeaderboard(true);
       if (updated) {
         ['easy','normal','hard','human_calculator'].forEach(d => {
           state.leaderboard[d] = updated[d] || [];
         });
-        // Use server-validated score for rank lookup
+        // Gunakan score dari SERVER (bukan dari client) untuk cari rank
         const serverScore = result.score;
-        const idx = state.leaderboard[state.difficulty].findIndex(e => e.score === serverScore && e.username === state.username);
+        const idx = state.leaderboard[state.difficulty].findIndex(
+          e => e.score === serverScore && e.username === state.username
+        );
         rank = idx >= 0 ? idx + 1 : null;
       }
     }
   }
 
-  // Rank message
   const diffLabel = { easy:'Easy', normal:'Normal', hard:'Hard', human_calculator:'Human Calculator' }[state.difficulty];
   const rankMsg = document.getElementById('rank-msg');
   rankMsg.className = 'results-rank-msg';
@@ -1588,40 +1583,39 @@ function showToast(msg, duration = 2500) {
   setTimeout(() => t.classList.remove('show'), duration);
 }
 
+// ======================== START BUTTON VALIDATION ========================
+function updateStartBtn() {
+  const val = document.getElementById('username-input').value;
+  const usernameValid = val.length >= 2 && val.length <= 20 && /^[a-z0-9_]+$/.test(val);
+  const turnstileValid = !!turnstileToken;
+  document.getElementById('btn-start').disabled = !(usernameValid && turnstileValid);
+}
+
 // ======================== INIT & EVENTS ========================
 document.addEventListener('DOMContentLoaded', () => {
   setupAntiCheat();
 
-  // Username input
   const usernameInput = document.getElementById('username-input');
   const btnStart = document.getElementById('btn-start');
 
-  // Pre-fill
   const savedUsername = localStorage.getItem('lastUsername') || '';
   usernameInput.value = savedUsername;
-  validateUsername(savedUsername);
+  state.username = savedUsername.length >= 2 && /^[a-z0-9_]+$/.test(savedUsername) ? savedUsername : '';
 
   usernameInput.addEventListener('input', () => {
-    // Enforce rules live
     let val = usernameInput.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
     if (usernameInput.value !== val) usernameInput.value = val;
-    validateUsername(val);
+    state.username = (val.length >= 2 && val.length <= 20) ? val : '';
+    updateStartBtn();
   });
 
-  function validateUsername(val) {
-    const valid = val.length >= 2 && val.length <= 20 && /^[a-z0-9_]+$/.test(val);
-    btnStart.disabled = !valid;
-    state.username = valid ? val : '';
-  }
-
   btnStart.addEventListener('click', () => {
-    if (!state.username) return;
+    if (!state.username || !turnstileToken) return;
     localStorage.setItem('lastUsername', state.username);
     document.getElementById('diff-greeting').textContent = `Ready, ${state.username}?`;
     showScreen('difficulty');
   });
 
-  // Difficulty selection
   document.querySelectorAll('.diff-card').forEach(card => {
     card.addEventListener('click', () => {
       startCountdown(card.dataset.diff);
@@ -1630,12 +1624,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('diff-back-btn').addEventListener('click', () => showScreen('home'));
 
-  // Answer input — Enter to submit
   document.getElementById('answer-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') submitAnswer();
   });
 
-  // Results buttons
   document.getElementById('btn-play-again').addEventListener('click', () => {
     showScreen('difficulty');
   });
@@ -1647,14 +1639,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-view-lb').addEventListener('click', () => {
     showScreen('home');
-    loadLeaderboard(true); // force refresh saat klik tombol lihat leaderboard
-    // Scroll to leaderboard
+    loadLeaderboard(true);
     setTimeout(() => {
       document.querySelector('.leaderboard-section').scrollIntoView({ behavior: 'smooth' });
     }, 100);
   });
 
-  // Leaderboard tabs
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -1664,8 +1654,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-
-  // Load leaderboard
   loadLeaderboard();
 });
 </script>

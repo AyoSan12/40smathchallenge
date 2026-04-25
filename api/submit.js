@@ -1,8 +1,7 @@
 // api/submit.js — Server-side score validator
 // Menerima jawaban mentah dari client, hitung ulang skor, tulis ke Supabase.
 // Client TIDAK PERNAH mengirim skor langsung — hanya soal + jawaban + sessionToken.
-// sessionToken diterbitkan oleh /api/start dan ditandatangani HMAC oleh server,
-// sehingga startTime TIDAK BISA dipalsukan oleh hacker.
+// sessionToken diterbitkan oleh /api/start dan ditandatangani HMAC oleh server.
 
 export const config = {
   runtime: 'edge',
@@ -32,7 +31,6 @@ async function verifySessionToken(token, secret) {
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
 
-  // Constant-time comparison untuk cegah timing attack
   if (receivedSig.length !== expectedSig.length) return { ok: false, reason: 'Signature mismatch' };
   let diff = 0;
   for (let i = 0; i < expectedSig.length; i++) {
@@ -45,6 +43,29 @@ async function verifySessionToken(token, secret) {
 
   const ageSeconds = (Date.now() - ts) / 1000;
   return { ok: true, ageSeconds };
+}
+
+// ── Helper: verify Cloudflare Turnstile token ────────────────────────────────
+async function verifyTurnstile(token, secretKey, ip) {
+  if (!token) return { ok: false, reason: 'No Turnstile token' };
+
+  try {
+    const formData = new FormData();
+    formData.append('secret', secretKey);
+    formData.append('response', token);
+    if (ip) formData.append('remoteip', ip);
+
+    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await res.json();
+    if (data.success) return { ok: true };
+    return { ok: false, reason: data['error-codes']?.join(',') || 'Turnstile failed' };
+  } catch (e) {
+    return { ok: false, reason: 'Turnstile network error' };
+  }
 }
 
 // ── Main handler ─────────────────────────────────────────────────────────────
@@ -71,68 +92,75 @@ export default async function handler(req) {
     });
   }
 
-  const { username, difficulty, questions, userAnswers, timeRemaining, sessionToken } = body;
+  const { username, difficulty, questions, userAnswers, timeRemaining, sessionToken, turnstileToken } = body;
 
   const fail = (status, msg) => new Response(JSON.stringify({ error: msg }), {
     status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 
-  // ── 1. Ambil SECRET dari environment ─────────────────────────────────────
-  const SESSION_SECRET = (typeof process !== 'undefined' && process.env?.SESSION_SECRET)
-    || globalThis.__env__?.SESSION_SECRET;
-  if (!SESSION_SECRET) {
-    console.error('SESSION_SECRET not set');
+  const getEnv = (key) =>
+    (typeof process !== 'undefined' && process.env?.[key]) || globalThis.__env__?.[key];
+
+  // ── 1. Ambil semua SECRET dari environment ───────────────────────────────
+  const SESSION_SECRET = getEnv('SESSION_SECRET');
+  const TURNSTILE_SECRET = getEnv('TURNSTILE_SECRET_KEY');
+  const SUPABASE_URL = getEnv('SUPABASE_URL');
+  const SUPABASE_SERVICE_KEY = getEnv('SUPABASE_SERVICE_KEY');
+
+  if (!SESSION_SECRET || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+    console.error('Missing required env vars');
     return fail(500, 'Server config error');
   }
 
-  // ── 2. Verifikasi session token (anti-bot utama) ──────────────────────────
+  // ── 2. Verify Cloudflare Turnstile (anti-bot CAPTCHA) ───────────────────
+  if (TURNSTILE_SECRET) {
+    const ip = req.headers.get('x-real-ip') ||
+      (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || '';
+    const turnstileResult = await verifyTurnstile(turnstileToken, TURNSTILE_SECRET, ip);
+    if (!turnstileResult.ok) {
+      console.warn(`[TURNSTILE FAIL] ${username} — ${turnstileResult.reason}`);
+      return fail(403, 'Verifikasi bot gagal. Coba lagi dari awal.');
+    }
+  }
+
+  // ── 3. Verifikasi session token ──────────────────────────────────────────
   const { ok, ageSeconds, reason } = await verifySessionToken(sessionToken, SESSION_SECRET);
   if (!ok) {
     console.warn(`[TOKEN INVALID] ${username} — ${reason}`);
     return fail(403, 'Session token tidak valid. Mulai quiz dari awal.');
   }
 
-  // Token kedaluwarsa setelah 3 menit (quiz max 40 detik + toleransi loading)
   if (ageSeconds > 180) {
-    return fail(400, 'Session sudah kadaluarsa. Refresh halaman dan coba lagi.');
+    return fail(400, 'Session sudah kedaluwarsa. Refresh halaman dan coba lagi.');
   }
 
-  // Anti-bot: token harus berumur minimal 8 detik (0.4s × 20 soal)
   const MIN_HUMAN_TIME = 8;
   if (ageSeconds < MIN_HUMAN_TIME) {
     console.warn(`[BOT DETECTED] ${username} — completed in ${ageSeconds.toFixed(2)}s`);
-    return fail(403, 'Waduuuh, kok cepet banget? Kamu manusia atau kalkulator? Skor ditolak ya!');
+    return fail(403, 'Terlalu cepat! Skor ditolak.');
   }
 
-  // ── 3. Validasi username ─────────────────────────────────────────────────
+  // ── 4. Validasi username ─────────────────────────────────────────────────
   if (!username || typeof username !== 'string') return fail(400, 'No username');
+  if (/[^\x00-\x7F]/.test(username)) return fail(400, 'Username tidak boleh pakai emoji atau karakter khusus');
+  if (!/^[a-z0-9_]{2,20}$/.test(username)) return fail(400, 'Username hanya boleh huruf kecil, angka, dan underscore (2-20 karakter)');
 
-  // Blokir karakter non-ASCII (emoji, unicode tersembunyi, dll)
-  if (/[^\x00-\x7F]/.test(username)) {
-    return fail(400, 'Username tidak boleh pakai emoji atau karakter khusus');
-  }
-  // Hanya huruf kecil, angka, underscore, 2-20 karakter
-  if (!/^[a-z0-9_]{2,20}$/.test(username)) {
-    return fail(400, 'Username hanya boleh huruf kecil, angka, dan underscore (2-20 karakter)');
-  }
   const BLOCKED_PATTERNS = ['hacker', 'cheat', 'spammer', 'fakebot', 'injector'];
-  if (BLOCKED_PATTERNS.some(p => username.includes(p))) {
-    return fail(400, 'Username tidak diizinkan');
-  }
+  if (BLOCKED_PATTERNS.some(p => username.includes(p))) return fail(400, 'Username tidak diizinkan');
 
-  // ── 4. Validasi difficulty ────────────────────────────────────────────────
+  // ── 5. Validasi difficulty ────────────────────────────────────────────────
   const VALID_DIFFS = ['easy', 'normal', 'hard', 'human_calculator'];
   if (!VALID_DIFFS.includes(difficulty)) return fail(400, 'Invalid difficulty');
 
-  // ── 5. Validasi array soal & jawaban ─────────────────────────────────────
+  // ── 6. Validasi array soal & jawaban ─────────────────────────────────────
   if (!Array.isArray(questions) || questions.length !== 20) return fail(400, 'Need exactly 20 questions');
   if (!Array.isArray(userAnswers) || userAnswers.length !== 20) return fail(400, 'Need exactly 20 answers');
 
-  // ── 6. Validasi timeRemaining ─────────────────────────────────────────────
+  // ── 7. Validasi timeRemaining ─────────────────────────────────────────────
   const TR = parseFloat(timeRemaining);
   if (isNaN(TR) || TR < 0 || TR > 40) return fail(400, 'Invalid time');
 
-  // ── 7. Re-score di server (inti anti-cheat) ──────────────────────────────
+  // ── 8. Re-score di server (inti anti-cheat) ─────────────────────────────
   let correct = 0, wrong = 0, answered = 0;
   const usedPairs = new Set();
 
@@ -162,25 +190,25 @@ export default async function handler(req) {
     }
   }
 
-  // ── 8. Timing sanity check berdasarkan ageSeconds (bukan startTime klien) ─
-  const elapsedFromToken = ageSeconds;
+  // ── 9. Timing sanity check ───────────────────────────────────────────────
   const MIN_PER_ANSWERED = 0.4;
-  if (answered > 0 && elapsedFromToken < answered * MIN_PER_ANSWERED) {
-    console.warn(`[CHEAT] ${username} — ${answered} jawaban dalam ${elapsedFromToken.toFixed(2)}s`);
+  if (answered > 0 && ageSeconds < answered * MIN_PER_ANSWERED) {
+    console.warn(`[CHEAT TIMING] ${username} — ${answered} jawaban dalam ${ageSeconds.toFixed(2)}s`);
     return fail(400, 'Timing anomaly detected');
   }
 
-  // ── 9. Hitung skor final di server ────────────────────────────────────────
-  const multipliers   = { easy: 1.0, normal: 2.0, hard: 4.0, human_calculator: 8.0 };
-  const timeBonuses   = { easy: 10,  normal: 25,  hard: 50,  human_calculator: 100 };
-
+  // ── 10. Hitung skor di server dengan formula KONSISTEN dengan client ──────
+  // PENTING: Formula ini harus SAMA dengan calculateScore() di index.html
+  // Client formula: mult={easy:1.0, normal:1.5, hard:2.0, hc:3.0}, timeBonus=correct*TR*2, penalty=wrong*20
+  const multipliers = { easy: 1.0, normal: 1.5, hard: 2.0, human_calculator: 3.0 };
   const timeRem = Math.round(TR);
-  let baseScore = correct * 100;
-  let penalty   = wrong * 50;
-  let timeBonus = correct > 0 ? timeRem * timeBonuses[difficulty] : 0;
 
-  const multiplier = multipliers[difficulty] || 1.0;
-  let finalScore = Math.floor((baseScore - penalty + timeBonus) * multiplier);
+  const base    = correct * 100;
+  const penalty = wrong * 20;
+  const bonus   = correct * timeRem * 2;
+  const raw     = Math.max(0, base + bonus - penalty);
+  let finalScore = Math.round(raw * (multipliers[difficulty] || 1.0));
+
   if (finalScore < 0) finalScore = 0;
 
   if (finalScore === 0) {
@@ -189,18 +217,32 @@ export default async function handler(req) {
     });
   }
 
-  // ── 10. Tulis ke Supabase dengan SERVICE KEY ──────────────────────────────
-  const SUPABASE_URL = (typeof process !== 'undefined' && process.env?.SUPABASE_URL)
-    || globalThis.__env__?.SUPABASE_URL;
-  const SUPABASE_SERVICE_KEY = (typeof process !== 'undefined' && process.env?.SUPABASE_SERVICE_KEY)
-    || globalThis.__env__?.SUPABASE_SERVICE_KEY;
-
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-    console.error('Missing Supabase env vars');
-    return fail(500, 'Server config error');
-  }
-
+  // ── 11. Tulis ke Supabase — only update if new score is HIGHER ────────────
+  // RLS di Supabase memastikan hanya row dengan username+difficulty yang cocok yang bisa di-upsert.
+  // Service key digunakan di sini (server-side only, tidak pernah expose ke client).
   try {
+    // Cek skor existing
+    const existing = await fetch(
+      `${SUPABASE_URL}/rest/v1/scores?username=eq.${encodeURIComponent(username)}&difficulty=eq.${difficulty}&select=score`,
+      {
+        headers: {
+          'apikey': SUPABASE_SERVICE_KEY,
+          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        },
+      }
+    );
+
+    if (existing.ok) {
+      const rows = await existing.json();
+      if (rows.length > 0 && rows[0].score >= finalScore) {
+        // Skor lama lebih tinggi — jangan overwrite, tapi tetap return score baru
+        return new Response(JSON.stringify({ score: finalScore, submitted: false, reason: 'existing_score_higher' }), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // Upsert skor baru (lebih tinggi dari yang lama)
     const dbRes = await fetch(
       `${SUPABASE_URL}/rest/v1/scores?on_conflict=username,difficulty`,
       {
@@ -218,7 +260,7 @@ export default async function handler(req) {
           correct,
           wrong,
           time_remaining: timeRem,
-          session_token: sessionToken,
+          // Jangan simpan session_token ke DB — tidak perlu, dan ini mengurangi attack surface
         }),
       }
     );

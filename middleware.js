@@ -1,3 +1,6 @@
+// middleware.js — Rate limiting + bot detection layer
+// Berjalan di edge sebelum semua request ke /api/start dan /api/submit
+
 import { next } from '@vercel/edge';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
@@ -11,7 +14,7 @@ const submitLimiter = new Ratelimit({
   prefix: 'rl:submit',
 });
 
-// /api/start: 10x per 10 menit per IP (lebih longgar, tapi tetap dibatasi)
+// /api/start: 10x per 10 menit per IP
 const startLimiter = new Ratelimit({
   redis,
   limiter: Ratelimit.slidingWindow(10, '600 s'),
@@ -40,7 +43,25 @@ export default async function middleware(request) {
     return new Response('Bot tidak diizinkan.', { status: 403 });
   }
 
-  // ── 2. Wajib ada Content-Type: application/json untuk POST ───────────────
+  // ── 2. Origin check — hanya izinkan dari domain kamu sendiri ────────────
+  // GANTI 'https://your-app.vercel.app' dengan domain kamu yang sebenarnya!
+  const ALLOWED_ORIGINS = [
+    process.env.APP_ORIGIN,          // set di Vercel env: https://namaapp.vercel.app
+    'http://localhost:3000',          // untuk development lokal
+  ].filter(Boolean);
+
+  const origin = request.headers.get('origin') || '';
+  const referer = request.headers.get('referer') || '';
+
+  const originAllowed = !origin || ALLOWED_ORIGINS.some(o => origin.startsWith(o));
+  const refererAllowed = !referer || ALLOWED_ORIGINS.some(o => referer.startsWith(o));
+
+  if (!originAllowed && !refererAllowed) {
+    console.warn(`[ORIGIN BLOCKED] origin=${origin} referer=${referer}`);
+    return new Response('Akses tidak diizinkan.', { status: 403 });
+  }
+
+  // ── 3. Wajib ada Content-Type: application/json untuk POST ───────────────
   if (request.method === 'POST') {
     const ct = request.headers.get('content-type') || '';
     if (!ct.includes('application/json')) {
@@ -48,7 +69,7 @@ export default async function middleware(request) {
     }
   }
 
-  // ── 3. Rate limiting per endpoint ────────────────────────────────────────
+  // ── 4. Rate limiting per endpoint ────────────────────────────────────────
   const ip = request.headers.get('x-real-ip')
     || (request.headers.get('x-forwarded-for') || '').split(',')[0].trim()
     || '127.0.0.1';

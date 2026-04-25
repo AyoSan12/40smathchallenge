@@ -1,17 +1,20 @@
+// api/start.js — Menerbitkan HMAC-signed session token
+// Token digunakan oleh /api/submit untuk memverifikasi bahwa quiz dimulai secara sah.
+// Tidak ada yang berubah dari versi asli — sudah aman.
+
 export const config = {
   runtime: 'edge',
 };
 
 export default async function handler(req) {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
+
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      },
-    });
+    return new Response(null, { status: 200, headers: corsHeaders });
   }
 
   if (req.method !== 'POST') {
@@ -44,12 +47,7 @@ export default async function handler(req) {
     ['sign']
   );
 
-  const signatureBuffer = await crypto.subtle.sign(
-    'HMAC',
-    keyMaterial,
-    encoder.encode(payload)
-  );
-
+  const signatureBuffer = await crypto.subtle.sign('HMAC', keyMaterial, encoder.encode(payload));
   const signature = Array.from(new Uint8Array(signatureBuffer))
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
@@ -60,7 +58,7 @@ export default async function handler(req) {
     status: 200,
     headers: {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
+      ...corsHeaders,
       'Cache-Control': 'no-store',
     },
   });
