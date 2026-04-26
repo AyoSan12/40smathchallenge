@@ -593,7 +593,7 @@
   }
 
   /* Hidden real input — hanya untuk terima keyboard */
-  #answer-input {
+  .answer-input-hidden {
     position: absolute;
     opacity: 0;
     width: 1px;
@@ -1142,7 +1142,7 @@
     <div class="answer-input-wrap" id="answer-wrap">
       <div class="answer-label">your answer</div>
       <!-- Hidden input for keyboard capture -->
-      <input type="tel" id="answer-input" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" tabindex="0">
+      <input type="tel" id="answer-input" class="answer-input-hidden" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" tabindex="0">
       <!-- Custom visual display -->
       <div class="answer-display empty" id="answer-display">
         <span class="answer-display-text" id="answer-display-text">?</span>
