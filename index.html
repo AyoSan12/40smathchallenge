@@ -1121,12 +1121,19 @@ const _domIds = (() => {
   };
 })();
 
+// Store direct element references (populated after DOMContentLoaded)
+const _els = {
+  questionDisplay: null,
+  answerInput: null,
+  honeypot: null,
+};
+
 // Rename actual DOM elements at runtime
 document.addEventListener('DOMContentLoaded', () => {
   const qd = document.getElementById('question-display');
   const ai = document.getElementById('answer-input');
-  if (qd) qd.id = _domIds.questionDisplay;
-  if (ai) ai.id = _domIds.answerInput;
+  if (qd) { qd.id = _domIds.questionDisplay; _els.questionDisplay = qd; }
+  if (ai) { ai.id = _domIds.answerInput; _els.answerInput = ai; }
 
   // Inject honeypot — hidden from real users, visible to DOM-scraping bots
   const hp = document.createElement('input');
@@ -1138,10 +1145,14 @@ document.addEventListener('DOMContentLoaded', () => {
   hp.setAttribute('aria-hidden', 'true');
   hp.style.cssText = 'position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;';
   document.body.appendChild(hp);
+  _els.honeypot = hp;
 });
 
-// Helper to get obfuscated element
-function _el(key) { return document.getElementById(_domIds[key]); }
+// Helper to get obfuscated element — gunakan cache _els, fallback ke getElementById
+function _el(key) {
+  if (_els[key]) return _els[key];
+  return document.getElementById(_domIds[key]);
+}
 
 // ======================== STATE ========================
 const state = {
@@ -1419,6 +1430,7 @@ async function startCountdown(difficulty) {
   showScreen('quiz');
 
   // Fetch HMAC session token from server
+  let tokenFetchOk = false;
   try {
     const res = await fetch('/api/start', {
       method: 'POST',
@@ -1428,11 +1440,21 @@ async function startCountdown(difficulty) {
     const data = await res.json();
     if (data.sessionToken) {
       state.sessionToken = data.sessionToken;
+      tokenFetchOk = true;
     } else {
       console.error('Failed to get session token:', data);
+      const errMsg = data.error || 'Gagal verifikasi. Refresh halaman dan coba lagi.';
+      showToast(`⚠️ ${errMsg}`, 4000);
     }
   } catch (e) {
     console.error('Error fetching session token:', e);
+    showToast('⚠️ Koneksi bermasalah. Cek internet dan coba lagi.', 4000);
+  }
+
+  if (!tokenFetchOk) {
+    // Batalkan — kembali ke layar difficulty supaya user bisa coba lagi
+    showScreen('difficulty');
+    return;
   }
 
   // Reset Turnstile setelah dipakai — force re-verify untuk game berikutnya
@@ -1476,13 +1498,15 @@ function beginQuiz() {
   document.getElementById('quiz-diff-label').textContent = labels[state.difficulty];
   document.getElementById('q-total').textContent = state.questions.length;
 
+  // Block paste/copy on input — pastikan elemen sudah ada
+  const inp = _el('answerInput');
+  if (inp) {
+    inp.addEventListener('paste', (e) => e.preventDefault());
+    inp.addEventListener('copy', (e) => e.preventDefault());
+  }
+
   showQuestion(0);
   startTimer();
-
-  // Block paste/copy on input
-  const inp = _el('answerInput');
-  inp.addEventListener('paste', (e) => e.preventDefault());
-  inp.addEventListener('copy', (e) => e.preventDefault());
 }
 
 function showQuestion(idx) {
@@ -1490,13 +1514,18 @@ function showQuestion(idx) {
   state.answerTimestamps.push(Date.now()); // track when each question shown
   const q = state.questions[idx];
   const display = _el('questionDisplay');
-  display.innerHTML = `${q.question} <span class="equals">=</span> ?`;
-  display.style.animation = 'none';
-  requestAnimationFrame(() => { display.style.animation = ''; });
+  if (display) {
+    display.innerHTML = `${q.question} <span class="equals">=</span> ?`;
+    display.style.animation = 'none';
+    requestAnimationFrame(() => { display.style.animation = ''; });
+  }
 
   document.getElementById('q-current').textContent = idx + 1;
-  _el('answerInput').value = '';
-  _el('answerInput').focus();
+  const inp = _el('answerInput');
+  if (inp) {
+    inp.value = '';
+    inp.focus();
+  }
 }
 
 function startTimer() {
@@ -1535,6 +1564,7 @@ function submitAnswer() {
     return;
   }
   const inp = _el('answerInput');
+  if (!inp) return; // safety guard
   const raw = inp.value.trim();
   const given = raw === '' ? null : parseInt(raw, 10);
   const correct = state.questions[state.currentQ].answer;
@@ -1681,23 +1711,27 @@ function showToast(msg, duration = 2500) {
 }
 
 // ======================== INIT & EVENTS ========================
+
+// updateStartBtn harus di scope global karena dipanggil dari startCountdown()
+function updateStartBtn() {
+  const btnStart = document.getElementById('btn-start');
+  if (!btnStart) return;
+  const hasUsername = state.username.length >= 2;
+  const hasTurnstile = !!state.turnstileToken;
+  btnStart.disabled = !hasUsername || !hasTurnstile;
+  if (hasUsername && !hasTurnstile) {
+    btnStart.title = 'Menunggu verifikasi Cloudflare...';
+  } else {
+    btnStart.title = '';
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   setupAntiCheat();
 
   // Username input
   const usernameInput = document.getElementById('username-input');
   const btnStart = document.getElementById('btn-start');
-
-  function updateStartBtn() {
-    const hasUsername = state.username.length >= 2;
-    const hasTurnstile = !!state.turnstileToken;
-    btnStart.disabled = !hasUsername || !hasTurnstile;
-    if (hasUsername && !hasTurnstile) {
-      btnStart.title = 'Menunggu verifikasi Cloudflare...';
-    } else {
-      btnStart.title = '';
-    }
-  }
 
 
   // Cloudflare Turnstile init
@@ -1788,7 +1822,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Results buttons
   document.getElementById('btn-play-again').addEventListener('click', () => {
-    showScreen('difficulty');
+    // Harus kembali ke home dulu untuk Turnstile re-verify sebelum main lagi
+    showScreen('home');
+    loadLeaderboard(true);
+    // Scroll ke atas (form username)
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 
   document.getElementById('btn-change-player').addEventListener('click', () => {
