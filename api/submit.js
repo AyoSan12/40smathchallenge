@@ -345,6 +345,7 @@ export default async function handler(req) {
           'Content-Type': 'application/json',
           'apikey': SUPABASE_SERVICE_KEY,
           'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+          'Prefer': 'params=single-object',
         },
         body: JSON.stringify({
           p_username: username.toLowerCase().trim(),
