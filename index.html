@@ -589,68 +589,113 @@
     position: relative;
     width: 100%;
     max-width: 280px;
+    cursor: text;
   }
 
-  /* Glow bar di atas input */
-  .answer-input-wrap::before {
+  /* Hidden real input — hanya untuk terima keyboard */
+  #answer-input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 16px;
+    pointer-events: none;
+    border: none;
+    background: transparent;
+    color: transparent;
+    caret-color: transparent;
+    outline: none;
+  }
+
+  /* Custom display box */
+  .answer-display {
+    width: 100%;
+    min-height: 90px;
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-shadow: inset 0 2px 16px rgba(0,0,0,0.35);
+  }
+
+  /* Corner accents */
+  .answer-display::before,
+  .answer-display::after {
     content: '';
     position: absolute;
-    top: -1px;
-    left: 20%;
-    width: 60%;
-    height: 2px;
-    background: var(--accent);
-    border-radius: 2px;
-    opacity: 0;
-    transition: opacity 0.3s;
-    z-index: 1;
+    width: 12px;
+    height: 12px;
+    border-color: var(--muted);
+    border-style: solid;
+    opacity: 0.4;
+    transition: opacity 0.2s, border-color 0.2s;
+  }
+  .answer-display::before {
+    top: 8px; left: 8px;
+    border-width: 1.5px 0 0 1.5px;
+    border-radius: 3px 0 0 0;
+  }
+  .answer-display::after {
+    bottom: 8px; right: 8px;
+    border-width: 0 1.5px 1.5px 0;
+    border-radius: 0 0 3px 0;
   }
 
-  .answer-input-wrap:focus-within::before {
-    opacity: 1;
-    box-shadow: 0 0 12px rgba(240,224,64,0.6);
+  .answer-display.focused {
+    border-color: var(--accent);
+    box-shadow:
+      inset 0 2px 16px rgba(0,0,0,0.35),
+      0 0 0 3px rgba(240,224,64,0.08),
+      0 0 28px rgba(240,224,64,0.1);
+  }
+  .answer-display.focused::before,
+  .answer-display.focused::after {
+    border-color: var(--accent);
+    opacity: 0.8;
   }
 
-  #answer-input {
-    width: 100%;
-    text-align: center;
-    /* Force dark background — override browser mobile defaults */
-    background: #12121a !important;
-    background-color: #12121a !important;
-    border: 1.5px solid #2a2a40;
-    border-radius: 16px;
-    color: #f0e040 !important;
-    -webkit-text-fill-color: #f0e040;
+  .answer-display-text {
     font-family: 'Plus Jakarta Sans', sans-serif;
     font-weight: 800;
-    font-size: clamp(40px, 12vw, 64px);
-    padding: 18px 16px;
-    outline: none;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    font-size: clamp(44px, 13vw, 72px);
+    color: var(--accent);
     letter-spacing: 6px;
-    caret-color: #f0e040;
-    /* Prevent mobile browser styling */
-    -webkit-appearance: none;
-    -moz-appearance: textfield;
-    appearance: none;
-    /* Inner shadow for depth */
-    box-shadow: inset 0 2px 12px rgba(0,0,0,0.4);
+    line-height: 1;
+    text-align: center;
   }
 
-  #answer-input::placeholder {
-    color: #2a2a40;
-    -webkit-text-fill-color: #2a2a40;
-    letter-spacing: 2px;
-    font-size: 32px;
+  /* Blinking cursor */
+  .answer-cursor {
+    display: inline-block;
+    width: 3px;
+    height: clamp(36px, 10vw, 56px);
+    background: var(--accent);
+    border-radius: 2px;
+    margin-left: 2px;
+    vertical-align: middle;
+    animation: cursorBlink 1s step-end infinite;
+    opacity: 0;
+  }
+  .answer-display.focused .answer-cursor { opacity: 1; }
+
+  @keyframes cursorBlink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
   }
 
-  #answer-input:focus {
-    border-color: #f0e040;
-    box-shadow:
-      inset 0 2px 12px rgba(0,0,0,0.4),
-      0 0 0 3px rgba(240,224,64,0.08),
-      0 0 24px rgba(240,224,64,0.12);
+  /* Placeholder state */
+  .answer-display.empty .answer-display-text {
+    color: var(--border);
+    font-size: clamp(32px, 9vw, 48px);
   }
+  .answer-display.empty .answer-cursor { display: none; }
 
   /* Label kecil di atas input */
   .answer-label {
@@ -1094,9 +1139,15 @@
     <div class="question-display" id="question-display">
       7 × 9 <span class="equals">=</span> ?
     </div>
-    <div class="answer-input-wrap">
+    <div class="answer-input-wrap" id="answer-wrap">
       <div class="answer-label">your answer</div>
-      <input type="tel" id="answer-input" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="?">
+      <!-- Hidden input for keyboard capture -->
+      <input type="tel" id="answer-input" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" tabindex="0">
+      <!-- Custom visual display -->
+      <div class="answer-display empty" id="answer-display">
+        <span class="answer-display-text" id="answer-display-text">?</span>
+        <span class="answer-cursor"></span>
+      </div>
     </div>
     <div class="quiz-hint">press ENTER to submit · leave blank to skip</div>
   </div>
@@ -1204,6 +1255,30 @@ document.addEventListener('DOMContentLoaded', () => {
 function _el(key) {
   if (_els[key]) return _els[key];
   return document.getElementById(_domIds[key]);
+}
+
+// Update custom answer display to mirror hidden input value
+function updateAnswerDisplay(val) {
+  const display = document.getElementById('answer-display');
+  const text = document.getElementById('answer-display-text');
+  if (!display || !text) return;
+  if (!val) {
+    display.className = 'answer-display empty' + (display.classList.contains('focused') ? ' focused' : '');
+    text.textContent = '?';
+  } else {
+    display.className = 'answer-display' + (display.classList.contains('focused') ? ' focused' : '');
+    text.textContent = val;
+  }
+}
+
+function focusAnswerInput() {
+  const inp = _el('answerInput');
+  const display = document.getElementById('answer-display');
+  if (inp) {
+    inp.focus();
+    setTimeout(() => { if (inp && state.quizActive) inp.focus(); }, 50);
+  }
+  if (display) display.classList.add('focused');
 }
 
 // ======================== STATE ========================
@@ -1555,18 +1630,27 @@ function beginQuiz() {
   document.getElementById('quiz-diff-label').textContent = labels[state.difficulty];
   document.getElementById('q-total').textContent = state.questions.length;
 
-  // Block paste/copy on input — pastikan elemen sudah ada
+  // Setup input events — sync dengan custom display
   const inp = _el('answerInput');
+  const answerWrap = document.getElementById('answer-wrap');
+  const answerDisplay = document.getElementById('answer-display');
   if (inp) {
     inp.addEventListener('paste', (e) => e.preventDefault());
     inp.addEventListener('copy', (e) => e.preventDefault());
-    // Hanya izinkan angka, backspace, delete, arrow keys
     inp.addEventListener('keydown', (e) => {
       const allowed = ['Backspace','Delete','ArrowLeft','ArrowRight','Tab','Enter'];
       if (!allowed.includes(e.key) && !/^[0-9]$/.test(e.key)) {
         e.preventDefault();
       }
     });
+    // Sync display setiap input
+    inp.addEventListener('input', () => updateAnswerDisplay(inp.value.replace(/[^0-9]/g, '')));
+    inp.addEventListener('focus', () => { if (answerDisplay) answerDisplay.classList.add('focused'); });
+    inp.addEventListener('blur', () => { if (answerDisplay) answerDisplay.classList.remove('focused'); });
+  }
+  // Tap di mana saja di wrap → focus input
+  if (answerWrap) {
+    answerWrap.addEventListener('click', () => focusAnswerInput());
   }
 
   showQuestion(0);
@@ -1588,10 +1672,9 @@ function showQuestion(idx) {
   const inp = _el('answerInput');
   if (inp) {
     inp.value = '';
-    // Focus langsung + fallback timeout untuk mobile
-    inp.focus();
-    setTimeout(() => { if (inp && state.quizActive) inp.focus(); }, 50);
+    updateAnswerDisplay('');
   }
+  focusAnswerInput();
 }
 
 function startTimer() {
@@ -1631,7 +1714,8 @@ function submitAnswer() {
   }
   const inp = _el('answerInput');
   if (!inp) return; // safety guard
-  const raw = inp.value.replace(/[^0-9]/g, '').trim(); // strip non-digit (tel input bisa ada +/-)
+  const raw = inp.value.replace(/[^0-9]/g, '').trim();
+  updateAnswerDisplay('');
   const given = raw === '' ? null : parseInt(raw, 10);
   const correct = state.questions[state.currentQ].answer;
 
