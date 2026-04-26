@@ -1424,7 +1424,7 @@ function randInt(min, max) {
 
 // ======================== SCORING ========================
 function calculateScore(correct, wrong, timeRemaining, difficulty) {
-  const mult = { easy: 1.0, normal: 1.5, hard: 2.0, human_calculator: 3.0 }[difficulty];
+  const mult = { easy: 1.0, normal: 2.5, hard: 5.0, human_calculator: 10.0 }[difficulty];
   const base = correct * 100;
   const bonus = correct * timeRemaining * 2;
   const penalty = wrong * 20;
@@ -1774,7 +1774,14 @@ async function showResults() {
     serverScore = result.score || 0;
     serverBreakdown = result.breakdown;
 
-    if (serverBreakdown) {
+    if (result.error) {
+      // Server returned an error — show it clearly instead of silently showing 0
+      document.getElementById('score-rows').innerHTML = `
+        <div class="score-row"><span class="label" style="color:var(--accent3)">⚠️ Gagal submit ke server</span></div>
+        <div class="score-row"><span class="label" style="color:var(--muted);font-size:10px">${result.error}</span></div>
+        <div class="score-row total"><span class="label">FINAL SCORE</span><span class="value" style="color:var(--muted)">Tidak tersimpan</span></div>
+      `;
+    } else if (serverBreakdown) {
       const bd = serverBreakdown;
       document.getElementById('score-rows').innerHTML = `
         <div class="score-row"><span class="label">Base (${correct} benar × 500)</span><span class="value">${bd.baseScore.toLocaleString()}</span></div>
