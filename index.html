@@ -1427,6 +1427,12 @@ async function startCountdown(difficulty) {
   // Generate questions
   state.questions = QuestionModules.multiplication.generate(difficulty, 20);
 
+  // Tampilkan overlay DULU sebelum showScreen — cegah soal muncul sekilas
+  const overlayEarly = document.getElementById('countdown-overlay');
+  const numEarly = document.getElementById('countdown-num');
+  overlayEarly.style.display = 'flex';
+  numEarly.textContent = 'GET READY';
+
   showScreen('quiz');
 
   // Fetch HMAC session token from server
@@ -1452,7 +1458,8 @@ async function startCountdown(difficulty) {
   }
 
   if (!tokenFetchOk) {
-    // Batalkan — kembali ke layar difficulty supaya user bisa coba lagi
+    // Batalkan — sembunyikan overlay dan kembali ke layar difficulty
+    overlayEarly.style.display = 'none';
     showScreen('difficulty');
     return;
   }
@@ -1466,11 +1473,9 @@ async function startCountdown(difficulty) {
   document._quizContextBlock = (e) => { if (state.quizActive) e.preventDefault(); };
   document.addEventListener('contextmenu', document._quizContextBlock);
 
-  // Countdown
+  // Countdown (overlay sudah ditampilkan di atas, tinggal mulai countdown)
   const overlay = document.getElementById('countdown-overlay');
   const num = document.getElementById('countdown-num');
-  overlay.style.display = 'flex';
-  num.textContent = 'GET READY';
 
   setTimeout(() => {
     let count = 3;
@@ -1634,19 +1639,29 @@ async function showResults() {
         <div class="score-row"><span class="label">Difficulty ×${bd.multiplier}</span><span class="value">${diffLabels[state.difficulty]}</span></div>
         <div class="score-row total"><span class="label">FINAL SCORE</span><span class="value">${serverScore.toLocaleString()}</span></div>
       `;
+    } else if (serverScore > 0) {
+      // Skor ada tapi tidak ada breakdown (misal: skor lama lebih tinggi — 'kept')
+      const keptMsg = result.message ? `<div class="score-row"><span class="label" style="color:var(--orange)">${result.message}</span></div>` : '';
+      document.getElementById('score-rows').innerHTML = `
+        ${keptMsg}
+        <div class="score-row total"><span class="label">FINAL SCORE</span><span class="value">${serverScore.toLocaleString()}</span></div>
+      `;
     } else {
       document.getElementById('score-rows').innerHTML = `
         <div class="score-row total"><span class="label">FINAL SCORE</span><span class="value">${serverScore.toLocaleString()}</span></div>
       `;
     }
 
-    if (result.submitted !== false) {
+    // Selalu fetch leaderboard terbaru untuk tampilkan rank — baik submitted maupun kept
+    if (serverScore > 0) {
       const updated = await fetchLeaderboard(true);
       if (updated) {
         ['easy','normal','hard','human_calculator'].forEach(d => {
           state.leaderboard[d] = updated[d] || [];
         });
-        const idx = state.leaderboard[state.difficulty].findIndex(e => e.score === serverScore && e.username === state.username);
+        // Cari rank: username cocok (score bisa saja skor lama yang lebih tinggi)
+        const entries = state.leaderboard[state.difficulty];
+        const idx = entries.findIndex(e => e.username === state.username);
         rank = idx >= 0 ? idx + 1 : null;
       }
     }
