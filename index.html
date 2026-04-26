@@ -1792,12 +1792,25 @@ async function showResults() {
         <div class="score-row total"><span class="label">FINAL SCORE</span><span class="value">${serverScore.toLocaleString()}</span></div>
       `;
     } else if (serverScore > 0) {
-      // Skor ada tapi tidak ada breakdown (misal: skor lama lebih tinggi — 'kept')
+      // Skor ada tapi tidak mengalahkan rekor — tetap tampilkan breakdown lengkap
+      const bd = serverBreakdown;
       const keptMsg = result.message ? `<div class="score-row"><span class="label" style="color:var(--orange)">${result.message}</span></div>` : '';
-      document.getElementById('score-rows').innerHTML = `
-        ${keptMsg}
-        <div class="score-row total"><span class="label">FINAL SCORE</span><span class="value">${serverScore.toLocaleString()}</span></div>
-      `;
+      if (bd) {
+        document.getElementById('score-rows').innerHTML = `
+          ${keptMsg}
+          <div class="score-row"><span class="label">Base (${correct} benar × 500)</span><span class="value">${bd.baseScore.toLocaleString()}</span></div>
+          <div class="score-row"><span class="label">Speed bonus (${timeRemSec}s sisa, kuadratik)</span><span class="value green">+${bd.speedBonus.toLocaleString()}</span></div>
+          <div class="score-row"><span class="label">Streak bonus (max ${bd.maxStreak} beruntun)</span><span class="value green">+${bd.streakBonus.toLocaleString()}</span></div>
+          <div class="score-row"><span class="label">Penalty (${wrong} salah × 200)</span><span class="value red">−${bd.penalty.toLocaleString()}</span></div>
+          <div class="score-row"><span class="label">Difficulty ×${bd.multiplier}</span><span class="value">${diffLabels[state.difficulty]}</span></div>
+          <div class="score-row total"><span class="label">FINAL SCORE</span><span class="value">${serverScore.toLocaleString()}</span></div>
+        `;
+      } else {
+        document.getElementById('score-rows').innerHTML = `
+          ${keptMsg}
+          <div class="score-row total"><span class="label">FINAL SCORE</span><span class="value">${serverScore.toLocaleString()}</span></div>
+        `;
+      }
     } else {
       document.getElementById('score-rows').innerHTML = `
         <div class="score-row total"><span class="label">FINAL SCORE</span><span class="value">${serverScore.toLocaleString()}</span></div>

@@ -375,6 +375,7 @@ export default async function handler(req) {
       return new Response(JSON.stringify({
         score: finalScore,
         submitted: false,
+        breakdown,
         message: `Skor kamu (${finalScore}) tidak mengalahkan rekor sebelumnya (${rpcResult.score}). Coba lagi!`,
       }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
