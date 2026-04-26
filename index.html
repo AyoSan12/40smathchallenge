@@ -1044,7 +1044,7 @@
       7 × 9 <span class="equals">=</span> ?
     </div>
     <div class="answer-input-wrap">
-      <input type="text" id="answer-input" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="?">
+      <input type="tel" id="answer-input" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="?">
     </div>
     <div class="quiz-hint">press ENTER to submit · leave blank to skip</div>
   </div>
@@ -1508,6 +1508,13 @@ function beginQuiz() {
   if (inp) {
     inp.addEventListener('paste', (e) => e.preventDefault());
     inp.addEventListener('copy', (e) => e.preventDefault());
+    // Hanya izinkan angka, backspace, delete, arrow keys
+    inp.addEventListener('keydown', (e) => {
+      const allowed = ['Backspace','Delete','ArrowLeft','ArrowRight','Tab','Enter'];
+      if (!allowed.includes(e.key) && !/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+      }
+    });
   }
 
   showQuestion(0);
@@ -1529,7 +1536,9 @@ function showQuestion(idx) {
   const inp = _el('answerInput');
   if (inp) {
     inp.value = '';
+    // Focus langsung + fallback timeout untuk mobile
     inp.focus();
+    setTimeout(() => { if (inp && state.quizActive) inp.focus(); }, 50);
   }
 }
 
@@ -1570,7 +1579,7 @@ function submitAnswer() {
   }
   const inp = _el('answerInput');
   if (!inp) return; // safety guard
-  const raw = inp.value.trim();
+  const raw = inp.value.replace(/[^0-9]/g, '').trim(); // strip non-digit (tel input bisa ada +/-)
   const given = raw === '' ? null : parseInt(raw, 10);
   const correct = state.questions[state.currentQ].answer;
 

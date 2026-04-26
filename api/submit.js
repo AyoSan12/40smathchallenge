@@ -361,8 +361,9 @@ export default async function handler(req) {
 
     if (!dbRes.ok) {
       const errText = await dbRes.text();
-      console.error('Supabase RPC failed:', errText);
-      return fail(500, 'Database error');
+      console.error(`[SUPABASE ERROR] status=${dbRes.status} difficulty=${difficulty} username=${username} score=${finalScore} body=${errText}`);
+      // Return detail ke client untuk debugging — bisa diremove setelah produksi stabil
+      return fail(500, `Database error [${dbRes.status}]: ${errText.slice(0, 200)}`);
     }
 
     const rpcResult = await dbRes.json();
