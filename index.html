@@ -1,110 +1,3267 @@
-export const config = {
-  runtime: 'edge',
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>40s Math Challenge</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --card: #1a1a26;
+    --border: #2a2a40;
+    --accent: #f0e040;
+    --accent2: #40e0f0;
+    --accent3: #f04070;
+    --text: #e8e8f0;
+    --muted: #6868a0;
+    --green: #40f070;
+    --red: #f04070;
+    --orange: #f09040;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Animated grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(240,224,64,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(240,224,64,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(ellipse at 30% 20%, rgba(64,224,240,0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 70% 80%, rgba(240,64,112,0.05) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(240,224,64,0.04) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+    animation: bgPulse 12s ease-in-out infinite alternate;
+  }
+
+  @keyframes bgPulse {
+    0% { transform: scale(1) rotate(0deg); opacity: 0.6; }
+    100% { transform: scale(1.05) rotate(1deg); opacity: 1; }
+  }
+
+  .screen {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 40px;
+  }
+  .screen.active { display: flex; }
+
+  /* ======================== SCREEN 1 - HOME ======================== */
+  #screen-home {
+    justify-content: flex-start;
+    gap: 0;
+  }
+
+  .home-header {
+    text-align: center;
+    padding: 48px 0 32px;
+    width: 100%;
+  }
+
+
+  .home-title {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: clamp(56px, 12vw, 120px);
+    line-height: 0.9;
+    letter-spacing: -1px;
+    color: var(--text);
+    text-shadow: 0 0 60px rgba(240,224,64,0.2);
+  }
+
+  .home-title span {
+    color: var(--accent);
+    display: block;
+    text-shadow: 0 0 40px rgba(240,224,64,0.5), 0 0 80px rgba(240,224,64,0.2);
+  }
+
+  .home-subtitle {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 16px;
+    letter-spacing: 2px;
+  }
+
+
+  .home-form {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 32px 0 24px;
+  }
+
+  .form-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  .input-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--card);
+    transition: border-color 0.2s;
+  }
+
+  .input-row:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(240,224,64,0.1);
+  }
+
+  .input-prefix {
+    padding: 14px 12px 14px 16px;
+    color: var(--muted);
+    font-size: 14px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  #username-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--accent);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 16px;
+    padding: 14px 16px 14px 4px;
+    caret-color: var(--accent);
+  }
+
+  #username-input::placeholder { color: var(--border); }
+
+  .input-hint {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 8px;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .btn-start {
+    width: 100%;
+    padding: 18px;
+    background: var(--accent);
+    color: #0a0a0f;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: 22px;
+    letter-spacing: 3px;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-start::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.1);
+    transform: translateX(-100%);
+    transition: transform 0.3s;
+  }
+
+  .btn-start:hover::before { transform: translateX(100%); }
+  .btn-start:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(240,224,64,0.4); }
+  .btn-start:active { transform: translateY(0); }
+  .btn-start:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  /* Leaderboard on home */
+  .leaderboard-section {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  .leaderboard-section h3 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .leaderboard-section h3::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .tab-bar {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    background: var(--card);
+    border-radius: 8px;
+    padding: 4px;
+    border: 1px solid var(--border);
+  }
+
+  .tab-btn {
+    flex: 1;
+    padding: 8px 4px;
+    background: transparent;
+    border: none;
+    border-radius: 5px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 9px;
+    color: var(--muted);
+    cursor: pointer;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: all 0.15s;
+  }
+
+  .tab-btn.active {
+    background: var(--accent);
+    color: #0a0a0f;
+    font-weight: 700;
+  }
+
+  .leaderboard-table-container {
+    max-height: 500px; /* Batasi tinggi tabel */
+    overflow-y: auto;  /* Tambahkan scroll vertical */
+    border-radius: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+  
+  /* Mempercantik scrollbar untuk browser Chrome/Edge */
+  .leaderboard-table-container::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .leaderboard-table-container::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 10px;
+  }
+
+  .leaderboard-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .lb-row {
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
+    background: var(--card);
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    gap: 12px;
+    font-size: 13px;
+  }
+
+  .lb-rank {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: 18px;
+    color: var(--muted);
+    width: 24px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .lb-row:nth-child(1) .lb-rank { color: #ffd700; }
+  .lb-row:nth-child(2) .lb-rank { color: #c0c0c0; }
+  .lb-row:nth-child(3) .lb-rank { color: #cd7f32; }
+
+  .lb-name {
+    flex: 1;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px;
+    color: var(--accent2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .lb-stats {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 10px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .lb-score {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: 20px;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+
+  .lb-empty {
+    text-align: center;
+    padding: 24px;
+    color: var(--muted);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+  }
+
+  /* ======================== SCREEN 2 - DIFFICULTY ======================== */
+  #screen-difficulty {
+    justify-content: center;
+    gap: 0;
+  }
+
+  .diff-header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  .diff-header h2 {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: 48px;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .diff-header p {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 8px;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .diff-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    width: 100%;
+    max-width: 480px;
+  }
+
+  .diff-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--card);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .diff-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px; height: 100%;
+    background: var(--card-accent, var(--accent));
+    opacity: 0.7;
+    transition: opacity 0.2s;
+  }
+
+  .diff-card:hover {
+    border-color: var(--card-accent, var(--accent));
+    transform: translateX(4px);
+    box-shadow: -4px 0 24px rgba(0,0,0,0.3);
+  }
+
+  .diff-card:hover::before { opacity: 1; width: 6px; }
+
+  .diff-card[data-diff="easy"] { --card-accent: var(--green); }
+  .diff-card[data-diff="normal"] { --card-accent: var(--accent2); }
+  .diff-card[data-diff="hard"] { --card-accent: var(--orange); }
+  .diff-card[data-diff="human_calculator"] { --card-accent: var(--accent3); }
+
+  .diff-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .diff-name {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: 26px;
+    letter-spacing: 1px;
+    color: var(--card-accent, var(--accent));
+  }
+
+  .diff-badge {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 9px;
+    letter-spacing: 2px;
+    padding: 4px 10px;
+    border-radius: 100px;
+    border: 1px solid;
+    text-transform: uppercase;
+  }
+
+  .diff-badge.badge-green { color: var(--green); border-color: rgba(64,240,112,0.3); background: rgba(64,240,112,0.05); }
+  .diff-badge.badge-blue { color: var(--accent2); border-color: rgba(64,224,240,0.3); background: rgba(64,224,240,0.05); }
+  .diff-badge.badge-orange { color: var(--orange); border-color: rgba(240,144,64,0.3); background: rgba(240,144,64,0.05); }
+  .diff-badge.badge-red { color: var(--accent3); border-color: rgba(240,64,112,0.3); background: rgba(240,64,112,0.05); }
+
+  .diff-desc {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .diff-meta {
+    display: flex;
+    gap: 16px;
+    margin-top: 12px;
+  }
+
+  .diff-meta-item {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .diff-meta-item strong {
+    color: var(--text);
+    display: block;
+    font-size: 13px;
+  }
+
+  .back-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    margin-top: 24px;
+    transition: all 0.2s;
+  }
+  .back-btn:hover { border-color: var(--muted); color: var(--text); }
+
+  /* ======================== SCREEN 3 - QUIZ ======================== */
+  #screen-quiz {
+    justify-content: flex-start;
+    padding: 0;
+  }
+
+  .quiz-topbar {
+    width: 100%;
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    flex-shrink: 0;
+  }
+
+  .quiz-progress-text {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .quiz-progress-text span { color: var(--text); }
+
+  .quiz-diff-label {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: 18px;
+    letter-spacing: 2px;
+    color: var(--muted);
+  }
+
+  .timer-display {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: 32px;
+    color: var(--accent);
+    min-width: 48px;
+    text-align: center;
+    transition: color 0.3s;
+  }
+
+  .timer-display.yellow { color: var(--orange); }
+  .timer-display.red {
+    color: var(--accent3);
+    animation: timerPulse 0.5s ease-in-out infinite alternate;
+  }
+
+  @keyframes timerPulse {
+    0% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0.6; transform: scale(0.95); }
+  }
+
+  .timer-bar-container {
+    width: 100%;
+    height: 4px;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+
+  .timer-bar {
+    height: 100%;
+    background: var(--accent);
+    width: 100%;
+    transition: width 0.1s linear, background-color 0.5s;
+  }
+
+  .timer-bar.yellow { background: var(--orange); }
+  .timer-bar.red { background: var(--accent3); }
+
+  .quiz-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+    width: 100%;
+    gap: 40px;
+  }
+
+  .question-display {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: clamp(56px, 15vw, 96px);
+    color: var(--text);
+    text-align: center;
+    letter-spacing: 2px;
+    line-height: 1;
+    text-shadow: 0 0 40px rgba(240,224,64,0.1);
+    animation: questionIn 0.15s ease-out;
+  }
+
+  @keyframes questionIn {
+    from { opacity: 0; transform: translateY(8px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .question-display .equals {
+    color: var(--muted);
+    font-size: 0.6em;
+  }
+
+  .answer-input-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 280px;
+    cursor: text;
+  }
+
+  /* Hidden real input — hanya untuk terima keyboard */
+  .answer-input-hidden {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 16px;
+    pointer-events: none;
+    border: none;
+    background: transparent;
+    color: transparent;
+    caret-color: transparent;
+    outline: none;
+  }
+
+  /* Custom display box */
+  .answer-display {
+    width: 100%;
+    min-height: 90px;
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-shadow: inset 0 2px 16px rgba(0,0,0,0.35);
+  }
+
+  /* Corner accents */
+  .answer-display::before,
+  .answer-display::after {
+    content: '';
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-color: var(--muted);
+    border-style: solid;
+    opacity: 0.4;
+    transition: opacity 0.2s, border-color 0.2s;
+  }
+  .answer-display::before {
+    top: 8px; left: 8px;
+    border-width: 1.5px 0 0 1.5px;
+    border-radius: 3px 0 0 0;
+  }
+  .answer-display::after {
+    bottom: 8px; right: 8px;
+    border-width: 0 1.5px 1.5px 0;
+    border-radius: 0 0 3px 0;
+  }
+
+  .answer-display.focused {
+    border-color: var(--accent);
+    box-shadow:
+      inset 0 2px 16px rgba(0,0,0,0.35),
+      0 0 0 3px rgba(240,224,64,0.08),
+      0 0 28px rgba(240,224,64,0.1);
+  }
+  .answer-display.focused::before,
+  .answer-display.focused::after {
+    border-color: var(--accent);
+    opacity: 0.8;
+  }
+
+  .answer-display-text {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: clamp(44px, 13vw, 72px);
+    color: var(--accent);
+    letter-spacing: 6px;
+    line-height: 1;
+    text-align: center;
+  }
+
+  /* Blinking cursor */
+  .answer-cursor {
+    display: inline-block;
+    width: 3px;
+    height: clamp(36px, 10vw, 56px);
+    background: var(--accent);
+    border-radius: 2px;
+    margin-left: 2px;
+    vertical-align: middle;
+    animation: cursorBlink 1s step-end infinite;
+    opacity: 0;
+  }
+  .answer-display.focused .answer-cursor { opacity: 1; }
+
+  @keyframes cursorBlink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  /* Placeholder state */
+  .answer-display.empty .answer-display-text {
+    color: var(--border);
+    font-size: clamp(32px, 9vw, 48px);
+  }
+  .answer-display.empty .answer-cursor { display: none; }
+
+  /* Label kecil di atas input */
+  .answer-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: #6868a0;
+    text-transform: uppercase;
+    text-align: center;
+    margin-bottom: 10px;
+  }
+
+  .quiz-hint {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-align: center;
+  }
+
+  /* Countdown overlay */
+  #countdown-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+  }
+
+  .countdown-text {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: clamp(80px, 30vw, 200px);
+    color: var(--accent);
+    text-shadow: 0 0 80px rgba(240,224,64,0.5);
+    animation: countPulse 0.8s ease-out;
+    line-height: 1;
+  }
+
+  @keyframes countPulse {
+    0% { transform: scale(1.4); opacity: 0; }
+    60% { transform: scale(0.95); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  .countdown-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px;
+    color: var(--muted);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+  }
+
+  /* Cheat warning overlay */
+  #cheat-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,10,15,0.95);
+    z-index: 200;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+  }
+
+  #cheat-overlay.show { display: flex; }
+
+  .cheat-warning {
+    border: 2px solid var(--accent3);
+    border-radius: 12px;
+    padding: 40px;
+    text-align: center;
+    max-width: 400px;
+    background: var(--card);
+  }
+
+  .cheat-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  .cheat-warning h2 {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: 36px;
+    color: var(--accent3);
+    margin-bottom: 12px;
+  }
+
+  .cheat-warning p {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.6;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .btn-continue-cheat {
+    background: var(--accent3);
+    color: white;
+    border: none;
+    padding: 14px 32px;
+    border-radius: 8px;
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: 20px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: all 0.2s;
+  }
+  .btn-continue-cheat:hover { opacity: 0.85; }
+
+  /* ======================== SCREEN 4 - RESULTS ======================== */
+  #screen-results {
+    gap: 0;
+    padding: 24px 16px 60px;
+  }
+
+  .results-header {
+    text-align: center;
+    padding: 24px 0 32px;
+    width: 100%;
+  }
+
+  .results-rank-msg {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: clamp(28px, 6vw, 42px);
+    line-height: 1.2;
+    margin-bottom: 16px;
+  }
+
+  .results-rank-msg.gold { color: #ffd700; text-shadow: 0 0 30px rgba(255,215,0,0.4); }
+  .results-rank-msg.silver { color: #c0c0c0; }
+  .results-rank-msg.bronze { color: #cd7f32; }
+  .results-rank-msg.top10 { color: var(--accent2); }
+  .results-rank-msg.normal-r { color: var(--text); }
+  .results-rank-msg.cheated { color: var(--accent3); }
+  .results-rank-msg.impressive { color: var(--orange); }
+
+  .score-breakdown {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto 24px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .score-breakdown-title {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .score-rows {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .score-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+  }
+
+  .score-row .label { color: var(--muted); font-family: 'Space Grotesk', sans-serif; font-size: 11px; }
+  .score-row .value { font-family: 'Space Grotesk', sans-serif; color: var(--text); }
+  .score-row .value.green { color: var(--green); }
+  .score-row .value.red { color: var(--accent3); }
+
+  .score-row.total {
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+    margin-top: 4px;
+  }
+
+  .score-row.total .label {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: 20px;
+    letter-spacing: 2px;
+    color: var(--text);
+  }
+
+  .score-row.total .value {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: 36px;
+    color: var(--accent);
+    text-shadow: 0 0 20px rgba(240,224,64,0.3);
+  }
+
+  .review-table-wrap {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto 24px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .review-table-title {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+    background: var(--card);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .review-stats {
+    display: flex;
+    gap: 12px;
+  }
+
+  .review-stat {
+    font-size: 11px;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .review-stat .c { color: var(--green); }
+  .review-stat .w { color: var(--accent3); }
+
+  .review-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  .review-table th {
+    padding: 10px 12px;
+    text-align: left;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+  }
+
+  .review-table td {
+    padding: 9px 12px;
+    border-bottom: 1px solid rgba(42,42,64,0.5);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+  }
+
+  .review-table tr:last-child td { border-bottom: none; }
+  .review-table tr:nth-child(even) td { background: rgba(26,26,38,0.5); }
+  .review-table td:first-child { color: var(--muted); font-size: 10px; }
+  .review-table .q-col { color: var(--text); }
+  .review-table .your-col { color: var(--accent2); }
+  .review-table .ans-col { color: var(--muted); }
+  .review-table .result-col { font-size: 14px; text-align: center; }
+  .review-table td.skipped { color: var(--muted); font-style: italic; font-size: 10px; }
+
+  .results-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  .btn-primary {
+    width: 100%;
+    padding: 16px;
+    background: var(--accent);
+    color: #0a0a0f;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+    font-size: 20px;
+    letter-spacing: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(240,224,64,0.3); }
+
+  .btn-secondary {
+    width: 100%;
+    padding: 14px;
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+
+  .btn-secondary:hover { border-color: var(--text); }
+
+
+
+  /* Toast */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 24px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px;
+    color: var(--text);
+    z-index: 500;
+    transition: transform 0.3s ease;
+    white-space: nowrap;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+
+
+
+  /* ======================== OPERATION SELECTOR ======================== */
+  .op-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto 28px;
+  }
+
+  .op-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    padding: 14px 8px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .op-card .op-symbol {
+    display: block;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: 26px;
+    color: var(--muted);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .op-card .op-label {
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .op-card:hover { border-color: var(--accent2); }
+  .op-card.active {
+    border-color: var(--accent2);
+    background: rgba(64,224,240,0.08);
+    box-shadow: 0 0 0 3px rgba(64,224,240,0.12);
+  }
+  .op-card.active .op-symbol { color: var(--accent2); }
+  .op-card.active .op-label { color: var(--accent2); }
+
+  .op-section-label {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto 10px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  /* ======================== DURATION SELECTOR ======================== */
+  .duration-bar {
+    display: flex;
+    gap: 6px;
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px;
+  }
+
+  .dur-btn {
+    flex: 1;
+    padding: 8px 2px;
+    background: transparent;
+    border: none;
+    border-radius: 5px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .dur-btn.active {
+    background: var(--accent);
+    color: #0a0a0f;
+    font-weight: 700;
+  }
+
+  /* ======================== PROFILE / XP / LEVEL ======================== */
+  .profile-card {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto 20px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+
+  .profile-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .level-badge {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: 30px;
+    color: var(--accent);
+    text-shadow: 0 0 20px rgba(240,224,64,0.3);
+  }
+
+  .level-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--accent2);
+    text-transform: uppercase;
+    text-align: right;
+  }
+
+  .level-progress-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 10px;
+    color: var(--muted);
+    text-align: right;
+    margin-top: 4px;
+  }
+
+  .xp-bar-track {
+    width: 100%;
+    height: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    overflow: hidden;
+  }
+
+  .xp-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 100px;
+    transition: width 0.8s ease-out;
+  }
+
+  .profile-stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 6px;
+    text-align: center;
+  }
+
+  .stat-card .stat-value {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: 18px;
+    color: var(--text);
+    display: block;
+  }
+
+  .stat-card .stat-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 8px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-top: 3px;
+    display: block;
+  }
+
+  .streak-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    color: var(--orange);
+    border: 1px solid rgba(240,144,64,0.3);
+    background: rgba(240,144,64,0.08);
+    padding: 4px 12px;
+    border-radius: 100px;
+  }
+
+  /* ======================== ACHIEVEMENTS ======================== */
+  .achievements-section {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto 24px;
+  }
+
+  .ach-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .ach-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 8px;
+    text-align: center;
+    opacity: 0.55;
+    filter: grayscale(1);
+    transition: all 0.2s;
+  }
+
+  .ach-item.unlocked {
+    opacity: 1;
+    filter: none;
+    border-color: rgba(240,224,64,0.4);
+    box-shadow: 0 0 16px rgba(240,224,64,0.08);
+  }
+
+  .ach-item .ach-icon {
+    font-size: 22px;
+    display: block;
+    margin-bottom: 5px;
+  }
+
+  .ach-item .ach-name {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 8px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .ach-item .ach-desc {
+    font-size: 9px;
+    color: var(--muted);
+    margin-top: 3px;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  /* ======================== SETTINGS ======================== */
+  .settings-btn {
+    position: fixed;
+    top: 14px;
+    right: 14px;
+    z-index: 50;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--muted);
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .settings-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  #settings-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,10,15,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 300;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  #settings-overlay.show { display: flex; }
+
+  .settings-panel {
+    width: 100%;
+    max-width: 420px;
+    max-height: 85vh;
+    overflow-y: auto;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+  }
+
+  .settings-panel h2 {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: 24px;
+    letter-spacing: 2px;
+    color: var(--text);
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .settings-close {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 22px;
+    cursor: pointer;
+  }
+
+  .settings-section {
+    border-top: 1px solid var(--border);
+    padding: 14px 0;
+  }
+
+  .settings-section h3 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--accent2);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 0;
+  }
+
+  .setting-row .setting-name {
+    font-size: 13px;
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .setting-row .setting-desc {
+    font-size: 10px;
+    color: var(--muted);
+    font-family: 'Space Grotesk', sans-serif;
+    margin-top: 2px;
+  }
+
+  /* Toggle switch */
+  .switch {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+  }
+
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .switch .slider {
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    border-radius: 100px;
+    transition: 0.2s;
+    cursor: pointer;
+  }
+
+  .switch .slider::before {
+    content: '';
+    position: absolute;
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    top: 3px;
+    background: #fff;
+    border-radius: 50%;
+    transition: 0.2s;
+  }
+
+  .switch input:checked + .slider { background: var(--accent); }
+  .switch input:checked + .slider::before { transform: translateX(20px); }
+
+  /* Theme dots */
+  .theme-dots {
+    display: flex;
+    gap: 10px;
+  }
+
+  .theme-dot {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .theme-dot.active { border-color: #fff; transform: scale(1.1); }
+
+  /* ======================== ON-SCREEN KEYPAD ======================== */
+  .keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+  }
+
+  .keypad.hidden { display: none; }
+
+  .key-btn {
+    padding: 16px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    cursor: pointer;
+    transition: all 0.1s;
+    user-select: none;
+  }
+
+  .key-btn:active { transform: scale(0.94); border-color: var(--accent); }
+  .key-btn.action { color: var(--accent2); font-size: 16px; }
+
+  /* ======================== LIVE CORRECTIONS ======================== */
+  .answer-display.correct { border-color: var(--green); box-shadow: 0 0 0 3px rgba(64,240,112,0.15); }
+  .answer-display.wrong { border-color: var(--accent3); box-shadow: 0 0 0 3px rgba(240,64,112,0.15); }
+
+  .live-feedback {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    margin-top: 10px;
+    min-height: 16px;
+    text-align: center;
+  }
+
+  .live-feedback.correct { color: var(--green); }
+  .live-feedback.wrong { color: var(--accent3); }
+
+  /* ======================== MODAL (settings/pause) ======================== */
+  .modal-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,10,15,0.6);
+    z-index: 250;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .modal-scrim.show { display: flex; }
+
+  .modal-box {
+    width: 100%;
+    max-width: 420px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    text-align: center;
+  }
+
+  .modal-box h2 {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: 26px;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+
+  .modal-box p {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 18px;
+  }
+
+  /* ======================== Responsive ======================== */
+  @media (min-width: 600px) {
+    .diff-grid { gap: 16px; }
+    .diff-card { padding: 24px 28px; }
+  }
+</style>
+
+</head>
+<body>
+
+<!-- Settings button (global) -->
+<button class="settings-btn" id="btn-settings" title="Settings">⚙</button>
+
+<!-- ======================== SCREEN 1: HOME ======================== -->
+<div id="screen-home" class="screen active">
+  <div class="home-header">
+    <div class="home-title">
+      40s<span>Math</span>Challenge
+    </div>
+    <div class="home-subtitle">20 questions · 40 seconds · no mercy</div>
+  </div>
+
+  <div class="home-form">
+    <label class="form-label" for="username-input">Your Username</label>
+    <div class="input-row">
+      <span class="input-prefix">Hello, I'm</span>
+      <input type="text" id="username-input" placeholder="enter_username" maxlength="20" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    </div>
+    <div class="input-hint">lowercase · letters/numbers/underscore · 2–20 chars · no profanity</div>
+
+    <!-- Cloudflare Turnstile -->
+    <div id="turnstile-container" style="margin-top:16px;display:flex;justify-content:center;"></div>
+    <button class="btn-start" id="btn-start" disabled>START CHALLENGE →</button>
+  </div>
+
+  <!-- ======================== PROFILE / XP / LEVEL ======================== -->
+  <div class="profile-card" id="profile-card" style="display:none;">
+    <div class="profile-top">
+      <div>
+        <span class="level-badge" id="lvl-badge">LVL 1</span>
+      </div>
+      <div>
+        <div class="level-title" id="lvl-title">Novice</div>
+        <div class="level-progress-label" id="lvl-progress-label">0 / 50 XP</div>
+      </div>
+    </div>
+    <div class="xp-bar-track"><div class="xp-bar-fill" id="xp-bar-fill"></div></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;">
+      <div class="streak-chip" id="streak-chip">🔥 Streak 0</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:11px;color:var(--muted)" id="profile-total-xp">Total XP: 0</div>
+    </div>
+    <div class="profile-stats-row">
+      <div class="stat-card"><span class="stat-value" id="stat-games">0</span><span class="stat-label">Games</span></div>
+      <div class="stat-card"><span class="stat-value" id="stat-pb">0</span><span class="stat-label">Best</span></div>
+      <div class="stat-card"><span class="stat-value" id="stat-acc">0%</span><span class="stat-label">Accuracy</span></div>
+      <div class="stat-card"><span class="stat-value" id="stat-cpm">0</span><span class="stat-label">CPM</span></div>
+    </div>
+  </div>
+
+  <!-- ======================== ACHIEVEMENTS ======================== -->
+  <div class="achievements-section">
+    <h3 style="font-family:'Space Grotesk',sans-serif;font-size:11px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
+      Achievements <span id="ach-count" style="background:var(--card);border:1px solid var(--border);padding:2px 10px;border-radius:999px;font-size:10px;">0</span>
+    </h3>
+    <div class="ach-grid" id="ach-grid"></div>
+  </div>
+
+  <div class="leaderboard-section">
+    <h3>Leaderboard <span id="season-badge" style="font-size:0.6em;background:#b8860b;color:#fff;padding:2px 10px;border-radius:999px;vertical-align:middle;letter-spacing:1px;">SEASON 2</span></h3>
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="easy">Easy</button>
+      <button class="tab-btn" data-tab="normal">Normal</button>
+      <button class="tab-btn" data-tab="hard">Hard</button>
+      <button class="tab-btn" data-tab="human_calculator">HC</button>
+    </div>
+    <div class="leaderboard-table-container">
+      <div class="leaderboard-list" id="leaderboard-list">
+        <div class="lb-empty">loading scores...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================== SCREEN 2: DIFFICULTY ======================== -->
+<div id="screen-difficulty" class="screen">
+  <div class="diff-header">
+    <h2>PICK YOUR POISON</h2>
+    <p id="diff-greeting">Ready, player?</p>
+  </div>
+
+  <div class="op-section-label">Operation</div>
+  <div class="op-grid" id="op-grid">
+    <div class="op-card active" data-op="multiplication"><span class="op-symbol">×</span><span class="op-label">Multiply</span></div>
+    <div class="op-card" data-op="addition"><span class="op-symbol">+</span><span class="op-label">Add</span></div>
+    <div class="op-card" data-op="subtraction"><span class="op-symbol">−</span><span class="op-label">Subtract</span></div>
+    <div class="op-card" data-op="division"><span class="op-symbol">÷</span><span class="op-label">Divide</span></div>
+    <div class="op-card" data-op="mixed"><span class="op-symbol">±</span><span class="op-label">Mixed</span></div>
+  </div>
+
+  <div class="op-section-label">Time</div>
+  <div class="duration-bar" id="duration-bar">
+    <button class="dur-btn" data-dur="30">30s</button>
+    <button class="dur-btn active" data-dur="40">40s</button>
+    <button class="dur-btn" data-dur="60">60s</button>
+    <button class="dur-btn" data-dur="120">120s</button>
+  </div>
+
+  <div class="diff-grid">
+    <div class="diff-card" data-diff="easy">
+      <div class="diff-top">
+        <div class="diff-name">EASY</div>
+        <div class="diff-badge badge-green">everyone finishes</div>
+      </div>
+      <div class="diff-desc">Small numbers, big confidence. Perfect warm-up.</div>
+    </div>
+
+    <div class="diff-card" data-diff="normal">
+      <div class="diff-top">
+        <div class="diff-name">NORMAL</div>
+        <div class="diff-badge badge-blue">standard challenge</div>
+      </div>
+      <div class="diff-desc">Classic multiplication tables. How many can you nail in 40 seconds?</div>
+    </div>
+
+    <div class="diff-card" data-diff="hard">
+      <div class="diff-top">
+        <div class="diff-name">HARD</div>
+        <div class="diff-badge badge-orange">most can't finish</div>
+      </div>
+      <div class="diff-desc">Bigger numbers, no ×10 shortcuts. 10–12 correct is already great.</div>
+    </div>
+
+    <div class="diff-card" data-diff="human_calculator">
+      <div class="diff-top">
+        <div class="diff-name">HUMAN CALCULATOR</div>
+        <div class="diff-badge badge-red">show-off mode</div>
+      </div>
+      <div class="diff-desc">2-digit multiplication. Almost nobody finishes. 6–8 correct = elite.</div>
+    </div>
+  </div>
+
+  <button class="back-btn" id="diff-back-btn">← BACK</button>
+</div>
+
+<!-- ======================== SCREEN 3: QUIZ ======================== -->
+<div id="screen-quiz" class="screen">
+  <div class="quiz-topbar">
+    <div class="quiz-progress-text">Q <span id="q-current">1</span> / <span id="q-total">20</span></div>
+    <div class="quiz-diff-label" id="quiz-diff-label">NORMAL</div>
+    <div class="timer-display" id="timer-display">40</div>
+  </div>
+  <div class="timer-bar-container">
+    <div class="timer-bar" id="timer-bar"></div>
+  </div>
+
+  <div class="quiz-main">
+    <div class="question-display" id="question-display">
+      7 × 9 <span class="equals">=</span> ?
+    </div>
+    <div class="answer-input-wrap" id="answer-wrap">
+      <div class="answer-label">your answer</div>
+      <!-- Hidden input for keyboard capture -->
+      <input type="tel" id="answer-input" class="answer-input-hidden" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" tabindex="0">
+      <!-- Custom visual display -->
+      <div class="answer-display empty" id="answer-display">
+        <span class="answer-display-text" id="answer-display-text">?</span>
+        <span class="answer-cursor"></span>
+      </div>
+    </div>
+    <div class="quiz-hint">press ENTER to submit · leave blank to skip</div>
+    <div class="live-feedback" id="live-feedback"></div>
+  </div>
+
+  <!-- On-screen keypad (toggle in settings) -->
+  <div class="keypad hidden" id="keypad" style="padding:16px 20px 24px;flex-shrink:0;">
+    <button class="key-btn" data-k="1">1</button>
+    <button class="key-btn" data-k="2">2</button>
+    <button class="key-btn" data-k="3">3</button>
+    <button class="key-btn" data-k="4">4</button>
+    <button class="key-btn" data-k="5">5</button>
+    <button class="key-btn" data-k="6">6</button>
+    <button class="key-btn" data-k="7">7</button>
+    <button class="key-btn" data-k="8">8</button>
+    <button class="key-btn" data-k="9">9</button>
+    <button class="key-btn action" data-k="backspace">⌫</button>
+    <button class="key-btn" data-k="0">0</button>
+    <button class="key-btn action" data-k="enter">↵</button>
+  </div>
+</div>
+
+<!-- ======================== SCREEN 4: RESULTS ======================== -->
+<div id="screen-results" class="screen">
+  <div class="results-header">
+    <div class="results-rank-msg" id="rank-msg">Great effort!</div>
+    <div style="font-family:'Space Grotesk',sans-serif;font-size:12px;color:var(--muted);letter-spacing:2px;">
+      ⚡ <span id="res-cpm" style="color:var(--accent2);font-weight:700;">0</span> CPM · calculations per minute
+    </div>
+  </div>
+
+  <div class="score-breakdown" id="score-breakdown">
+    <div class="score-breakdown-title">Score Breakdown</div>
+    <div class="score-rows" id="score-rows"></div>
+  </div>
+
+  <div class="review-table-wrap">
+    <div class="review-table-title">
+      <span>Question Review</span>
+      <div class="review-stats">
+        <span class="review-stat"><span class="c" id="res-correct">0</span> correct</span>
+        <span class="review-stat"><span class="w" id="res-wrong">0</span> wrong</span>
+      </div>
+    </div>
+    <table class="review-table" id="review-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Question</th>
+          <th>Your Answer</th>
+          <th>Answer</th>
+          <th>✓</th>
+        </tr>
+      </thead>
+      <tbody id="review-tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="results-btns">
+    <button class="btn-primary" id="btn-play-again">PLAY AGAIN</button>
+    <button class="btn-secondary" id="btn-change-player">Change Player</button>
+    <button class="btn-secondary" id="btn-view-lb">View Leaderboard</button>
+  </div>
+</div>
+
+<!-- ======================== COUNTDOWN OVERLAY ======================== -->
+<div id="countdown-overlay" style="display:none;">
+  <div class="countdown-label">Get Ready!</div>
+  <div class="countdown-text" id="countdown-num">3</div>
+</div>
+
+<!-- ======================== CHEAT OVERLAY ======================== -->
+<div id="cheat-overlay">
+  <div class="cheat-warning">
+    <span class="cheat-icon">⚠️</span>
+    <h2 id="cheat-title">WARNING</h2>
+    <p id="cheat-msg">Tab switching detected! This is your first warning. Do it again and your score will be voided.</p>
+    <button class="btn-continue-cheat" id="cheat-continue-btn">UNDERSTOOD</button>
+  </div>
+</div>
+
+<!-- ======================== TOAST ======================== -->
+<div id="toast"></div>
+
+<!-- ======================== SETTINGS MODAL ======================== -->
+<div id="settings-overlay">
+  <div class="settings-panel">
+    <h2>SETTINGS <button class="settings-close" id="btn-settings-close">✕</button></h2>
+
+    <div class="settings-section">
+      <h3>Appearance</h3>
+      <div class="setting-row">
+        <div><div class="setting-name">Theme</div><div class="setting-desc">Color scheme</div></div>
+        <div class="theme-dots" id="theme-dots"></div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h3>Gameplay</h3>
+      <div class="setting-row">
+        <div><div class="setting-name">Live corrections</div><div class="setting-desc">Instant ✓/✗ feedback + sound after each answer</div></div>
+        <label class="switch"><input type="checkbox" id="set-live-corrections"><span class="slider"></span></label>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-name">On-screen keypad</div><div class="setting-desc">Show tap buttons during quiz</div></div>
+        <label class="switch"><input type="checkbox" id="set-keypad"><span class="slider"></span></label>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-name">Keypad layout</div><div class="setting-desc">1-2-3 on top (phone) vs 7-8-9 on top (calculator)</div></div>
+        <label class="switch"><input type="checkbox" id="set-keypad-asc"><span class="slider"></span></label>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-name">Sounds</div><div class="setting-desc">Correct / wrong beeps</div></div>
+        <label class="switch"><input type="checkbox" id="set-sound"><span class="slider"></span></label>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h3>Data</h3>
+      <div class="setting-row">
+        <div><div class="setting-name">Reset profile</div><div class="setting-desc">Clear local XP, stats &amp; achievements</div></div>
+        <button class="btn-secondary" id="btn-reset-profile" style="width:auto;padding:8px 16px;font-size:11px;">Reset</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================== PAUSE MODAL ======================== -->
+<div class="modal-scrim" id="pause-modal">
+  <div class="modal-box">
+    <h2 id="pause-title">PAUSED</h2>
+    <p id="pause-msg">Game paused.</p>
+    <button class="btn-primary" id="pause-resume-btn" style="width:auto;padding:12px 28px;font-size:16px;">RESUME</button>
+  </div>
+</div>
+
+<script>
+// ======================== DOM ID OBFUSCATION ========================
+// Generate random IDs per session — bot scripts hardcode IDs like #question-display
+const _domIds = (() => {
+  const rand = () => '_' + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6);
+  return {
+    questionDisplay: rand(),
+    answerInput: rand(),
+    honeypot: rand(),
+  };
+})();
+
+// Store direct element references (populated after DOMContentLoaded)
+const _els = {
+  questionDisplay: null,
+  answerInput: null,
+  honeypot: null,
 };
 
-// ── Helper: verifikasi Cloudflare Turnstile ──────────────────────────────────
-async function verifyTurnstile(token, ip) {
-  const TURNSTILE_SECRET = (typeof process !== 'undefined' && process.env?.TURNSTILE_SECRET_KEY)
-    || globalThis.__env__?.TURNSTILE_SECRET_KEY;
+// Rename actual DOM elements at runtime
+document.addEventListener('DOMContentLoaded', () => {
+  const qd = document.getElementById('question-display');
+  const ai = document.getElementById('answer-input');
+  if (qd) { qd.id = _domIds.questionDisplay; _els.questionDisplay = qd; }
+  if (ai) { ai.id = _domIds.answerInput; _els.answerInput = ai; }
 
-  if (!TURNSTILE_SECRET) {
-    console.warn('TURNSTILE_SECRET_KEY not set — skipping verification');
-    return { success: true }; // graceful degradation kalau env belum diset
-  }
+  // Inject honeypot — hidden from real users, visible to DOM-scraping bots
+  const hp = document.createElement('input');
+  hp.type = 'text';
+  hp.id = _domIds.honeypot;
+  hp.name = 'answer';           // looks like the real answer field
+  hp.autocomplete = 'off';
+  hp.tabIndex = -1;
+  hp.setAttribute('aria-hidden', 'true');
+  hp.style.cssText = 'position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;';
+  document.body.appendChild(hp);
+  _els.honeypot = hp;
+});
 
-  if (!token) return { success: false, reason: 'No turnstile token' };
+// Helper to get obfuscated element — gunakan cache _els, fallback ke getElementById
+function _el(key) {
+  if (_els[key]) return _els[key];
+  return document.getElementById(_domIds[key]);
+}
 
-  const formData = new FormData();
-  formData.append('secret', TURNSTILE_SECRET);
-  formData.append('response', token);
-  if (ip) formData.append('remoteip', ip);
-
-  try {
-    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-      method: 'POST',
-      body: formData,
-    });
-    const data = await res.json();
-    return data;
-  } catch (e) {
-    console.error('Turnstile verify error:', e);
-    return { success: false, reason: 'Verify request failed' };
+// Update custom answer display to mirror hidden input value
+function updateAnswerDisplay(val) {
+  const display = document.getElementById('answer-display');
+  const text = document.getElementById('answer-display-text');
+  if (!display || !text) return;
+  if (!val) {
+    display.className = 'answer-display empty' + (display.classList.contains('focused') ? ' focused' : '');
+    text.textContent = '?';
+  } else {
+    display.className = 'answer-display' + (display.classList.contains('focused') ? ' focused' : '');
+    text.textContent = val;
   }
 }
 
-export default async function handler(req) {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': 'https://40smathchallenge.vercel.app',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+function focusAnswerInput() {
+  const inp = _el('answerInput');
+  const display = document.getElementById('answer-display');
+  if (inp) {
+    inp.focus();
+    setTimeout(() => { if (inp && state.quizActive) inp.focus(); }, 50);
+  }
+  if (display) display.classList.add('focused');
+}
+
+// ======================== STATE ========================
+const state = {
+  username: '',
+  difficulty: '',
+  operation: 'multiplication',
+  duration: 40,
+  turnstileToken: '',  // Cloudflare Turnstile token
+  gameStartTime: null,
+  questions: [],
+  answers: [],
+  answerTimestamps: [],  // track per-answer timing for variance analysis
+  sessionToken: '',
+  focusLostCount: 0,
+  cheated: false,
+  honeypotTripped: false,
+  quizActive: false,
+  timerInterval: null,
+  sessionStartTime: 0,
+  timeRemaining: 40,
+  currentQ: 0,
+  leaderboard: { easy: [], normal: [], hard: [], human_calculator: [] },
+  activeTab: 'easy',
+  lastCorrect: null,
+};
+
+// ======================== SUPABASE CONFIG (read-only, leaderboard display) ========================
+  // NOTE: Anon key hanya untuk READ leaderboard. Score submission lewat /api/submit (server-side).
+  const SUPABASE_URL = 'https://nsstfsmbdgfatwhzcijx.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_ovrT1TrorqmgmPvHRSfLFA_sJ84lMF1';
+  const CURRENT_SEASON = 2; // Ganti angka ini setiap mulai season baru
+
+// ======================== SUPABASE LEADERBOARD ========================
+const LB_CACHE_KEY = `lb_cache_s${CURRENT_SEASON}`;
+const LB_CACHE_TTL = 5 * 60 * 1000; // 5 menit
+
+async function fetchLeaderboard(forceRefresh = false) {
+    // Cek cache dulu — hemat Supabase request
+    if (!forceRefresh) {
+      try {
+        const raw = localStorage.getItem(LB_CACHE_KEY);
+        if (raw) {
+          const { ts, data } = JSON.parse(raw);
+          if (Date.now() - ts < LB_CACHE_TTL) return data;
+        }
+      } catch {}
+    }
+
+    try {
+      const diffs = ['easy', 'normal', 'hard', 'human_calculator'];
+      const board = { easy: [], normal: [], hard: [], human_calculator: [] };
+      await Promise.all(diffs.map(async (diff) => {
+        // Ubah limit menjadi 100
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/scores?select=username,score,correct,difficulty&difficulty=eq.${diff}&season=eq.${CURRENT_SEASON}&order=score.desc&limit=100`,
+          { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
+        );
+        if (res.ok) board[diff] = await res.json();
+      }));
+
+      // Simpan ke cache
+      try {
+        localStorage.setItem(LB_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: board }));
+      } catch {}
+
+      return board;
+    } catch { return null; }
+  }
+
+async function submitScore(entry, difficulty) {
+  try {
+    const payload = {
+      username: state.username,
+      difficulty: state.difficulty,
+      operation: state.operation,
+      duration: state.duration,
+      questions: state.questions,
+      userAnswers: state.answers.map(a => (a.skipped || a.given === null) ? null : a.given),
+      timeRemaining: Math.round(state.timeRemaining * 1000), // kirim dalam MILIDETIK
+      sessionToken: state.sessionToken,
+      answerTimestamps: state.answerTimestamps, // for variance analysis server-side
+    };
+    const res = await fetch('/api/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return await res.json();
+  } catch { return { ok: false }; }
+}
+
+// ======================== QUESTION MODULES ========================
+// Adapted from soromath / MathTraining / Braincup: multiple operation pools.
+// "squares" = perfect-square mental math (Braincup-style, answer is the root).
+const OP_SYMBOLS = { multiplication: '×', addition: '+', subtraction: '−', division: '÷', mixed: '±' };
+
+const QuestionModules = {
+  multiplication: {
+    name: 'Multiplication',
+    generate(difficulty, count, used = new Set()) {
+      const ranges = {
+        easy: { a: [2,5], b: [2,9], maxProduct: 50 },
+        normal: { a: [2,9], b: [2,9] },
+        hard: { a: [6,12], b: [6,12], excludeTen: true },
+        human_calculator: { a: [13,19], b: [7,12], maxProduct: 230 },
+      };
+      const r = ranges[difficulty];
+      const out = [];
+      let attempts = 0;
+      while (out.length < count && attempts < 10000) {
+        attempts++;
+        const a = randInt(r.a[0], r.a[1]);
+        const b = randInt(r.b[0], r.b[1]);
+        if (difficulty === 'easy' && a * b >= 50) continue;
+        if (difficulty === 'hard' && (a === 10 || b === 10)) continue;
+        if (difficulty === 'human_calculator' && (a * b > 230 || b === 10)) continue;
+        const pairKey = [Math.min(a, b), Math.max(a, b)].join('x');
+        if (used.has(pairKey)) continue;
+        used.add(pairKey);
+        const [oa, ob] = Math.random() > 0.5 ? [a, b] : [b, a];
+        out.push({ question: `${oa} × ${ob}`, answer: oa * ob, op: 'multiplication' });
+      }
+      return shuffleArr(out).slice(0, count);
+    }
+  },
+  addition: {
+    name: 'Addition',
+    generate(difficulty, count, used = new Set()) {
+      const ranges = {
+        easy: { a: [2,20], b: [2,20], maxSum: 40 },
+        normal: { a: [11,99], b: [11,99] },
+        hard: { a: [101,499], b: [101,499] },
+        human_calculator: { a: [500,999], b: [500,999] },
+      };
+      const r = ranges[difficulty];
+      const out = [];
+      let attempts = 0;
+      while (out.length < count && attempts < 10000) {
+        attempts++;
+        const a = randInt(r.a[0], r.a[1]);
+        const b = randInt(r.b[0], r.b[1]);
+        if (difficulty === 'easy' && a + b > r.maxSum) continue;
+        const pairKey = [Math.min(a, b), Math.max(a, b)].join('+');
+        if (used.has(pairKey)) continue;
+        used.add(pairKey);
+        out.push({ question: `${a} + ${b}`, answer: a + b, op: 'addition' });
+      }
+      return shuffleArr(out).slice(0, count);
+    }
+  },
+  subtraction: {
+    name: 'Subtraction',
+    generate(difficulty, count, used = new Set()) {
+      const ranges = {
+        easy: { a: [10,99], b: [1,9] },
+        normal: { a: [21,99], b: [11,99] },
+        hard: { a: [201,999], b: [101,500] },
+        human_calculator: { a: [1001,9999], b: [501,999] },
+      };
+      const r = ranges[difficulty];
+      const out = [];
+      let attempts = 0;
+      while (out.length < count && attempts < 10000) {
+        attempts++;
+        let a = randInt(r.a[0], r.a[1]);
+        let b = randInt(r.b[0], r.b[1]);
+        if (a < b) [a, b] = [b, a];
+        const pairKey = `${a}-${b}`;
+        if (used.has(pairKey)) continue;
+        used.add(pairKey);
+        out.push({ question: `${a} − ${b}`, answer: a - b, op: 'subtraction' });
+      }
+      return shuffleArr(out).slice(0, count);
+    }
+  },
+  division: {
+    name: 'Division',
+    generate(difficulty, count, used = new Set()) {
+      const ranges = {
+        easy: { divisor: [2,5], q: [2,9] },
+        normal: { divisor: [2,9], q: [2,9] },
+        hard: { divisor: [3,12], q: [3,12] },
+        human_calculator: { divisor: [7,15], q: [7,15], maxProduct: 225 },
+      };
+      const r = ranges[difficulty];
+      const out = [];
+      let attempts = 0;
+      while (out.length < count && attempts < 10000) {
+        attempts++;
+        const divisor = randInt(r.divisor[0], r.divisor[1]);
+        let q = randInt(r.q[0], r.q[1]);
+        const product = divisor * q;
+        if (r.maxProduct && product > r.maxProduct) continue;
+        if (divisor === 10) continue;
+        const pairKey = [Math.min(divisor, q), Math.max(divisor, q)].join('/');
+        if (used.has(pairKey)) continue;
+        used.add(pairKey);
+        out.push({ question: `${product} ÷ ${divisor}`, answer: q, op: 'division' });
+      }
+      return shuffleArr(out).slice(0, count);
+    }
+  },
+  mixed: {
+    name: 'Mixed',
+    generate(difficulty, count) {
+      const pool = ['multiplication', 'addition', 'subtraction', 'division'];
+      const out = [];
+      const used = new Set(); // shared dedup so pairs don't repeat across ops
+      let guard = 0;
+      while (out.length < count && guard < 20000) {
+        guard++;
+        const op = pool[Math.floor(Math.random() * pool.length)];
+        const qs = QuestionModules[op].generate(difficulty, 1, used);
+        if (qs.length) out.push(qs[0]);
+      }
+      return shuffleArr(out).slice(0, count);
+    }
+  }
+};
+
+function shuffleArr(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// Detect the operation from a question string (shared by client + validation display)
+function detectOp(q) {
+  if (/[×x]/.test(q)) return 'multiplication';
+  if (/[+]/.test(q)) return 'addition';
+  if (/[−-]/.test(q)) return 'subtraction';
+  if (/[÷/]/.test(q)) return 'division';
+  return 'multiplication';
+}
+
+function randInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+// ======================== SCORING ========================
+function calculateScore(correct, wrong, timeRemaining, difficulty) {
+  const mult = { easy: 1.0, normal: 2.5, hard: 5.0, human_calculator: 10.0 }[difficulty];
+  const base = correct * 100;
+  const bonus = correct * timeRemaining * 2;
+  const penalty = wrong * 20;
+  return {
+    base,
+    bonus,
+    penalty,
+    mult,
+    raw: Math.max(0, base + bonus - penalty),
+    final: Math.round(Math.max(0, base + bonus - penalty) * mult),
   };
+}
 
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 200, headers: corsHeaders });
+// ======================== LOCAL PROFILE (stats/XP/achievements) ========================
+// Adapted from soromath (completed-tests history), Braincup (XP/level/streak/achievements)
+// and MathTraining (per-type accuracy/speed stats). All stored locally in localStorage.
+const PROFILE_KEY = '40s_profile_v1';
+const PROFILE_SIG_KEY = '40s_profile_sig_v1';
+
+// Simple non-crypto checksum so tampering with localStorage flags itself (client-side only).
+function profileChecksum(obj) {
+  const s = JSON.stringify(obj);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
   }
+  return (h >>> 0).toString(16);
+}
 
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+const DEFAULT_PROFILE = {
+  xp: 0,
+  streak: 0,
+  lastStreakDay: 0,
+  totalGames: 0,
+  totalCorrect: 0,
+  totalAnswered: 0,
+  bestScore: 0,
+  bestDifficulty: '',
+  achievements: [],
+  history: [], // {op, diff, correct, wrong, score, cpm, acc, date}
+};
+
+let profile = null;
+
+function loadProfile() {
+  try {
+    const raw = localStorage.getItem(PROFILE_KEY);
+    if (!raw) { profile = structuredClone(DEFAULT_PROFILE); return; }
+    const parsed = JSON.parse(raw);
+    const sig = localStorage.getItem(PROFILE_SIG_KEY);
+    if (sig !== profileChecksum(parsed)) {
+      console.warn('[PROFILE] Tampered profile detected — resetting local stats.');
+      profile = structuredClone(DEFAULT_PROFILE);
+      return;
+    }
+    profile = Object.assign(structuredClone(DEFAULT_PROFILE), parsed);
+  } catch {
+    profile = structuredClone(DEFAULT_PROFILE);
   }
+}
 
-  const SECRET = (typeof process !== 'undefined' && process.env?.SESSION_SECRET)
-    || globalThis.__env__?.SESSION_SECRET;
-
-  if (!SECRET) {
-    return new Response(JSON.stringify({ error: 'Server config error' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+function saveProfile() {
+  try {
+    const clean = structuredClone(profile);
+    clean.history = (clean.history || []).slice(-500);
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(clean));
+    localStorage.setItem(PROFILE_SIG_KEY, profileChecksum(clean));
+  } catch (e) {
+    console.error('saveProfile failed:', e);
   }
+}
 
-  // ── Verifikasi Turnstile ──────────────────────────────────────────────────
-  let body = {};
-  try { body = await req.json(); } catch {}
+function resetProfile() {
+  profile = structuredClone(DEFAULT_PROFILE);
+  saveProfile();
+  renderProfile();
+  renderAchievements();
+}
 
-  const clientIp = req.headers.get('x-real-ip')
-    || (req.headers.get('x-forwarded-for') || '').split(',')[0].trim()
-    || '127.0.0.1';
+// ── XP & LEVELS (Braincup: threshold = 50·n², milestone titles) ──
+const LEVEL_TITLES = [
+  [1, 'Novice'],
+  [5, 'Apprentice'],
+  [10, 'Scholar'],
+  [20, 'Sage'],
+  [30, 'Master'],
+  [50, 'Grandmaster'],
+];
 
-  const turnstileResult = await verifyTurnstile(body.turnstileToken, clientIp);
-  if (!turnstileResult.success) {
-    console.warn(`[TURNSTILE FAIL] IP=${clientIp} reason=${JSON.stringify(turnstileResult['error-codes'])}`);
-    return new Response(JSON.stringify({ error: 'Verifikasi Cloudflare gagal. Refresh halaman dan coba lagi.' }), {
-      status: 403,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+function xpThresholdForLevel(level) {
+  const n = Math.max(0, level - 1);
+  return 50 * n * n;
+}
+
+function levelForXp(xp) {
+  let level = 1;
+  while (xpThresholdForLevel(level + 1) <= xp) level++;
+  return level;
+}
+
+function titleForLevel(level) {
+  let t = 'Novice';
+  LEVEL_TITLES.forEach(([lvl, title]) => { if (level >= lvl) t = title; });
+  return t;
+}
+
+function xpIntoLevel(xp) {
+  const lvl = levelForXp(xp);
+  return xp - xpThresholdForLevel(lvl);
+}
+
+function xpSpanForLevel(lvl) {
+  return xpThresholdForLevel(lvl + 1) - xpThresholdForLevel(lvl);
+}
+
+function addXp(amount) {
+  if (amount <= 0) return;
+  profile.xp += amount;
+  unlockAchievement('xp_10k', profile.xp >= 10000);
+}
+
+// ── ACHIEVEMENTS (Braincup-style milestones) ──
+const ACHIEVEMENTS = [
+  { id: 'first_win', icon: '🎯', name: 'First Blood', desc: 'Complete your first quiz' },
+  { id: 'perfect_round', icon: '💯', name: 'Perfect Round', desc: 'Answer all 20 correctly' },
+  { id: 'gold_easy', icon: '🥇', name: 'Easy Master', desc: 'Score 2,000+ on Easy' },
+  { id: 'gold_normal', icon: '🥈', name: 'Normal Elite', desc: 'Score 5,000+ on Normal' },
+  { id: 'gold_hard', icon: '🏅', name: 'Hard Hitter', desc: 'Score 10,000+ on Hard' },
+  { id: 'gold_hc', icon: '👑', name: 'Human Calculator', desc: 'Score 10,000+ on HC' },
+  { id: 'xp_10k', icon: '⚡', name: 'Mind Marathoner', desc: 'Reach 10,000 total XP' },
+  { id: 'streak_30', icon: '🔥', name: 'Iron Streak', desc: '30-day challenge streak' },
+  { id: 'history_10', icon: '📈', name: 'Consistency', desc: 'Play 10 games' },
+  { id: 'all_ops', icon: '🧮', name: 'Polyglot', desc: 'Play all 6 operations' },
+  { id: 'speedster', icon: '🚀', name: 'Speedster', desc: 'Reach 30+ CPM in a game' },
+];
+
+function unlockAchievement(id, condition) {
+  if (!condition) return;
+  if (!profile.achievements.includes(id)) {
+    profile.achievements.push(id);
+    const a = ACHIEVEMENTS.find(x => x.id === id);
+    if (a) showToast(`🏆 Achievement unlocked: ${a.name}`, 3500);
+    saveProfile();
+    renderAchievements();
   }
+}
 
-  // ── Generate HMAC session token ───────────────────────────────────────────
-  const timestamp = Date.now().toString();
-  const nonce = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
-  const payload = `${timestamp}.${nonce}`;
+// ── DAILY STREAK (Braincup: consecutive-day challenge) ──
+function todayEpoch() {
+  return Math.floor(Date.now() / 86400000);
+}
 
-  const encoder = new TextEncoder();
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(SECRET),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
+function updateStreak() {
+  const today = todayEpoch();
+  if (profile.lastStreakDay === today) return; // already credited today
+  profile.streak = (profile.lastStreakDay === today - 1) ? profile.streak + 1 : 1;
+  profile.lastStreakDay = today;
+  addXp(10); // daily play bonus
+  unlockAchievement('streak_30', profile.streak >= 30);
+}
 
-  const signatureBuffer = await crypto.subtle.sign('HMAC', keyMaterial, encoder.encode(payload));
+// ── RENDER PROFILE ──
+function renderProfile() {
+  const card = document.getElementById('profile-card');
+  if (!card) return;
+  if (profile.totalGames === 0) {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = 'block';
+  const lvl = levelForXp(profile.xp);
+  document.getElementById('lvl-badge').textContent = `LVL ${lvl}`;
+  document.getElementById('lvl-title').textContent = titleForLevel(lvl);
+  document.getElementById('lvl-progress-label').textContent =
+    `${xpIntoLevel(profile.xp)} / ${xpSpanForLevel(lvl)} XP`;
+  document.getElementById('xp-bar-fill').style.width =
+    `${Math.min(100, Math.round(xpIntoLevel(profile.xp) / xpSpanForLevel(lvl) * 100))}%`;
+  document.getElementById('streak-chip').textContent = `🔥 Streak ${profile.streak}`;
+  document.getElementById('profile-total-xp').textContent = `Total XP: ${profile.xp.toLocaleString()}`;
+  document.getElementById('stat-games').textContent = profile.totalGames;
+  document.getElementById('stat-pb').textContent = profile.bestScore.toLocaleString();
+  document.getElementById('stat-acc').textContent =
+    profile.totalAnswered ? `${Math.round(profile.totalCorrect / profile.totalAnswered * 100)}%` : '0%';
+  document.getElementById('stat-cpm').textContent = bestCpm() || '0';
+}
 
-  const signature = Array.from(new Uint8Array(signatureBuffer))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
+function bestCpm() {
+  let best = 0;
+  (profile.history || []).forEach(h => { if (h.cpm > best) best = h.cpm; });
+  return best;
+}
 
-  const sessionToken = `${payload}.${signature}`;
+function renderAchievements() {
+  const grid = document.getElementById('ach-grid');
+  const count = document.getElementById('ach-count');
+  if (!grid) return;
+  grid.innerHTML = ACHIEVEMENTS.map(a => {
+    const unlocked = profile.achievements.includes(a.id);
+    return `<div class="ach-item ${unlocked ? 'unlocked' : ''}" title="${escHtml(a.name)} — ${escHtml(a.desc)}">
+      <span class="ach-icon">${a.icon}</span>
+      <span class="ach-name">${escHtml(a.name)}</span>
+      <span class="ach-desc">${escHtml(a.desc)}</span>
+    </div>`;
+  }).join('');
+  if (count) count.textContent = profile.achievements.length;
+}
 
-  return new Response(JSON.stringify({ sessionToken }), {
-    status: 200,
-    headers: {
-      ...corsHeaders,
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-store',
-    },
+function recordGame({ op, diff, correct, wrong, score, timeRemMs }) {
+  updateStreak();
+  profile.totalGames++;
+  profile.totalCorrect += correct;
+  profile.totalAnswered += correct + wrong;
+  if (score > profile.bestScore) {
+    profile.bestScore = score;
+    profile.bestDifficulty = diff;
+  }
+  const durationSec = (state.duration || 40);
+  const elapsed = Math.max(1, durationSec - timeRemMs / 1000);
+  const cpm = Math.round(correct / elapsed * 60);
+  profile.history.push({
+    op, diff, correct, wrong, score,
+    cpm,
+    acc: correct + wrong ? Math.round(correct / (correct + wrong) * 100) : 0,
+    date: Date.now(),
+  });
+
+  // XP award: base on score band, scaled so harder diffs give more (Braincup-style).
+  const xpMap = { easy: 10, normal: 20, hard: 40, human_calculator: 80 };
+  const baseXp = xpMap[diff] || 10;
+  addXp(baseXp + Math.min(50, Math.floor(score / 1000)));
+
+  unlockAchievement('first_win', profile.totalGames >= 1);
+  unlockAchievement('perfect_round', correct === 20 && wrong === 0);
+  unlockAchievement('gold_easy', diff === 'easy' && score >= 2000);
+  unlockAchievement('gold_normal', diff === 'normal' && score >= 5000);
+  unlockAchievement('gold_hard', diff === 'hard' && score >= 10000);
+  unlockAchievement('gold_hc', diff === 'human_calculator' && score >= 10000);
+  unlockAchievement('history_10', profile.totalGames >= 10);
+  unlockAchievement('speedster', cpm >= 30);
+
+  const playedOps = new Set(profile.history.map(h => h.op));
+  unlockAchievement('all_ops', playedOps.size >= 5);
+
+  saveProfile();
+  renderProfile();
+  renderAchievements();
+}
+
+// ======================== SETTINGS (localStorage) ========================
+const SETTINGS_KEY = '40s_settings_v1';
+
+const DEFAULT_SETTINGS = {
+  theme: 'neon',
+  liveCorrections: false,
+  keypad: false,
+  keypadAscending: false,
+  sound: true,
+  duration: 40,
+};
+
+let settings = Object.assign({}, DEFAULT_SETTINGS);
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) settings = Object.assign({}, DEFAULT_SETTINGS, JSON.parse(raw));
+  } catch {}
+}
+
+function saveSettings() {
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch {}
+}
+
+// ── THEMES (soromath themes system) ──
+const THEMES = {
+  neon: { name: 'Neon', vars: { '--bg': '#0a0a0f', '--surface': '#12121a', '--card': '#1a1a26', '--border': '#2a2a40', '--accent': '#f0e040', '--accent2': '#40e0f0', '--accent3': '#f04070' } },
+  midnight: { name: 'Midnight', vars: { '--bg': '#070b1a', '--surface': '#0d1428', '--card': '#141d3a', '--border': '#223055', '--accent': '#4fd1ff', '--accent2': '#9d7bff', '--accent3': '#ff6b9d' } },
+  forest: { name: 'Forest', vars: { '--bg': '#071310', '--surface': '#0d1f1a', '--card': '#142b24', '--border': '#244239', '--accent': '#7dffb2', '--accent2': '#6ee7a8', '--accent3': '#ff7b7b' } },
+  crimson: { name: 'Crimson', vars: { '--bg': '#140708', '--surface': '#1f0d0e', '--card': '#2a1416', '--border': '#432326', '--accent': '#ffb84d', '--accent2': '#ff8fa3', '--accent3': '#ff4d6d' } },
+};
+
+function applyTheme(name) {
+  const t = THEMES[name] || THEMES.neon;
+  Object.entries(t.vars).forEach(([k, v]) => document.documentElement.style.setProperty(k, v));
+  document.querySelectorAll('.theme-dot').forEach(dot => {
+    dot.classList.toggle('active', dot.dataset.theme === name);
   });
 }
+
+// ── SOUND EFFECTS (soromath anzan sounds, via Web Audio API) ──
+let audioCtx = null;
+
+function beep(freq, dur = 0.08, type = 'square', vol = 0.04) {
+  if (!settings.sound) return;
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.value = vol;
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + dur);
+  } catch {}
+}
+
+function soundCorrect() { beep(880, 0.12, 'square'); }
+function soundWrong() { beep(180, 0.18, 'sawtooth'); }
+function soundSubmit() { beep(440, 0.05, 'square', 0.025); }
+function soundTimer() { beep(1200, 0.04, 'sine', 0.02); }
+
+// ======================== KEYPAD ========================
+function setupKeypad() {
+  const keypad = document.getElementById('keypad');
+  const asc = settings.keypadAscending;
+  const digits = asc ? ['1','2','3','4','5','6','7','8','9','backspace','0','enter'] : ['7','8','9','4','5','6','1','2','3','backspace','0','enter'];
+  keypad.innerHTML = digits.map(d => {
+    const label = d === 'backspace' ? '⌫' : d === 'enter' ? '↵' : d;
+    const cls = (d === 'backspace' || d === 'enter') ? 'key-btn action' : 'key-btn';
+    return `<button class="${cls}" data-k="${d}">${label}</button>`;
+  }).join('');
+
+  keypad.querySelectorAll('.key-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const k = btn.dataset.k;
+      const inp = _el('answerInput');
+      if (!inp) return;
+      if (k === 'backspace') {
+        inp.value = inp.value.slice(0, -1);
+      } else if (k === 'enter') {
+        submitAnswer();
+        return;
+      } else {
+        if (/^[0-9]$/.test(k)) inp.value += k;
+      }
+      updateAnswerDisplay(inp.value.replace(/[^0-9]/g, ''));
+      focusAnswerInput();
+    });
+  });
+
+  keypad.classList.toggle('hidden', !settings.keypad);
+}
+
+// ======================== SCREEN MANAGEMENT ========================
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(`screen-${id}`).classList.add('active');
+}
+
+// ======================== LEADERBOARD UI ========================
+function renderLeaderboard(tab) {
+  const list = document.getElementById('leaderboard-list');
+  const entries = state.leaderboard[tab] || [];
+  if (entries.length === 0) {
+    list.innerHTML = '<div class="lb-empty">NO SCORES YET — BE FIRST!</div>';
+    return;
+  }
+  list.innerHTML = entries.map((e, i) => `
+    <div class="lb-row">
+      <div class="lb-rank">${i + 1}</div>
+      <div class="lb-name">${escHtml(e.username)}</div>
+      <div class="lb-stats">${e.correct}/20</div>
+      <div class="lb-score">${e.score.toLocaleString()}</div>
+    </div>
+  `).join('');
+}
+
+async function loadLeaderboard(forceRefresh = false) {
+  const board = await fetchLeaderboard(forceRefresh);
+  if (board) {
+    ['easy','normal','hard','human_calculator'].forEach(d => {
+      state.leaderboard[d] = board[d] || [];
+    });
+  }
+  renderLeaderboard(state.activeTab);
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ======================== ANTI-CHEAT ========================
+function setupAntiCheat() {
+  // Tab switch / blur
+  document.addEventListener('visibilitychange', onFocusLost);
+  window.addEventListener('blur', onFocusLost);
+
+  // Right-click (quiz only — handled in quiz start)
+  // DevTools keys
+  document.addEventListener('keydown', (e) => {
+    if (!state.quizActive) return;
+    if (
+      e.key === 'F12' ||
+      (e.ctrlKey && e.shiftKey && ['I','J','C'].includes(e.key.toUpperCase())) ||
+      (e.ctrlKey && e.key.toUpperCase() === 'U')
+    ) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
+}
+
+function onFocusLost() {
+  if (!state.quizActive) return;
+  if (document.hidden || document.visibilityState === 'hidden') {
+    triggerFocusLost();
+  }
+}
+
+function triggerFocusLost() {
+  if (!state.quizActive) return;
+  state.focusLostCount++;
+  if (state.focusLostCount === 1) {
+    showCheatWarning(false);
+  } else {
+    state.cheated = true;
+    showCheatWarning(true);
+    endQuiz();
+  }
+}
+
+function showCheatWarning(isFinal) {
+  const overlay = document.getElementById('cheat-overlay');
+  const title = document.getElementById('cheat-title');
+  const msg = document.getElementById('cheat-msg');
+  const btn = document.getElementById('cheat-continue-btn');
+
+  if (isFinal) {
+    title.textContent = 'SCORE VOIDED';
+    msg.textContent = 'Tab switching detected again. Your score will NOT be submitted. Quiz ended.';
+    btn.textContent = 'SEE RESULTS';
+    btn.onclick = () => {
+      overlay.classList.remove('show');
+      showResults();
+    };
+  } else {
+    title.textContent = 'WARNING';
+    msg.textContent = 'Tab switching detected! This is your first warning. Do it again and your score will be voided.';
+    btn.textContent = 'UNDERSTOOD — RESUME';
+    btn.onclick = () => overlay.classList.remove('show');
+  }
+  overlay.classList.add('show');
+}
+
+// ======================== QUIZ LOGIC ========================
+async function startCountdown(difficulty) {
+  state.difficulty = difficulty;
+  state.sessionToken = '';
+  state.focusLostCount = 0;
+  state.cheated = false;
+  state.currentQ = 0;
+  state.answers = [];
+  state.answerTimestamps = [];
+  state.timeRemaining = state.duration;
+  state.quizActive = false;
+
+  // Generate questions from the selected operation module
+  state.questions = QuestionModules[state.operation].generate(difficulty, 20);
+
+  // Tampilkan overlay DULU sebelum showScreen — cegah soal muncul sekilas
+  const overlayEarly = document.getElementById('countdown-overlay');
+  const numEarly = document.getElementById('countdown-num');
+  overlayEarly.style.display = 'flex';
+  numEarly.textContent = 'GET READY';
+
+  showScreen('quiz');
+
+  // Fetch HMAC session token from server
+  let tokenFetchOk = false;
+  try {
+    const res = await fetch('/api/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ turnstileToken: state.turnstileToken }),
+    });
+    const data = await res.json();
+    if (data.sessionToken) {
+      state.sessionToken = data.sessionToken;
+      tokenFetchOk = true;
+    } else {
+      console.error('Failed to get session token:', data);
+      const errMsg = data.error || 'Gagal verifikasi. Refresh halaman dan coba lagi.';
+      showToast(`⚠️ ${errMsg}`, 4000);
+    }
+  } catch (e) {
+    console.error('Error fetching session token:', e);
+    showToast('⚠️ Koneksi bermasalah. Cek internet dan coba lagi.', 4000);
+  }
+
+  if (!tokenFetchOk) {
+    // Batalkan — sembunyikan overlay dan kembali ke layar difficulty
+    overlayEarly.style.display = 'none';
+    showScreen('difficulty');
+    return;
+  }
+
+  // Reset Turnstile setelah dipakai — force re-verify untuk game berikutnya
+  state.turnstileToken = '';
+  if (window.turnstile) window.turnstile.reset();
+  updateStartBtn();
+
+  // Set up context menu block for quiz
+  document._quizContextBlock = (e) => { if (state.quizActive) e.preventDefault(); };
+  document.addEventListener('contextmenu', document._quizContextBlock);
+
+  // Countdown (overlay sudah ditampilkan di atas, tinggal mulai countdown)
+  const overlay = document.getElementById('countdown-overlay');
+  const num = document.getElementById('countdown-num');
+
+  setTimeout(() => {
+    let count = 3;
+    num.textContent = count;
+    const iv = setInterval(() => {
+      count--;
+      if (count <= 0) {
+        clearInterval(iv);
+        overlay.style.display = 'none';
+        beginQuiz();
+      } else {
+        num.textContent = count;
+      }
+    }, 800);
+  }, 700);
+}
+
+function beginQuiz() {
+  state.quizActive = true;
+  state.sessionStartTime = Date.now();
+  state.gameStartTime = Date.now();
+
+  // Update diff label
+  const labels = { easy:'EASY', normal:'NORMAL', hard:'HARD', human_calculator:'HUMAN CALC' };
+  const opLabels = { multiplication:'×', addition:'+', subtraction:'−', division:'÷', mixed:'±' };
+  document.getElementById('quiz-diff-label').textContent =
+    `${labels[state.difficulty]} · ${opLabels[state.operation] || ''}`;
+  document.getElementById('q-total').textContent = state.questions.length;
+
+  // Clear live feedback
+  const lf = document.getElementById('live-feedback');
+  if (lf) lf.textContent = '';
+
+  // Setup input events — sync dengan custom display
+  const inp = _el('answerInput');
+  const answerWrap = document.getElementById('answer-wrap');
+  const answerDisplay = document.getElementById('answer-display');
+  if (inp) {
+    inp.addEventListener('paste', (e) => e.preventDefault());
+    inp.addEventListener('copy', (e) => e.preventDefault());
+    inp.addEventListener('keydown', (e) => {
+      const allowed = ['Backspace','Delete','ArrowLeft','ArrowRight','Tab','Enter'];
+      if (!allowed.includes(e.key) && !/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+      }
+    });
+    // Sync display setiap input
+    inp.addEventListener('input', () => {
+      updateAnswerDisplay(inp.value.replace(/[^0-9]/g, ''));
+      const display = document.getElementById('answer-display');
+      if (display) { display.classList.remove('correct', 'wrong'); }
+    });
+    inp.addEventListener('focus', () => { if (answerDisplay) answerDisplay.classList.add('focused'); });
+    inp.addEventListener('blur', () => { if (answerDisplay) answerDisplay.classList.remove('focused'); });
+  }
+  // Tap di mana saja di wrap → focus input
+  if (answerWrap) {
+    answerWrap.addEventListener('click', () => focusAnswerInput());
+  }
+
+  // Show keypad if enabled
+  const keypad = document.getElementById('keypad');
+  if (keypad) keypad.classList.toggle('hidden', !settings.keypad);
+
+  showQuestion(0);
+  startTimer();
+}
+
+// ── PAUSE / RESUME (Braincup-style: pause timers while a modal is open) ──
+let pausedRemainingMs = 0;
+
+function pauseQuiz(title = 'PAUSED', msg = 'Game paused.') {
+  if (!state.quizActive) return;
+  state.quizActive = false;
+  if (state.timerInterval) clearInterval(state.timerInterval);
+  state.timerInterval = null;
+  pausedRemainingMs = state.timeRemaining * 1000;
+  document.getElementById('pause-title').textContent = title;
+  document.getElementById('pause-msg').textContent = msg;
+  document.getElementById('pause-modal').classList.add('show');
+}
+
+function resumeQuiz() {
+  document.getElementById('pause-modal').classList.remove('show');
+  if (state.cheated) return;
+  state.quizActive = true;
+  state.sessionStartTime = Date.now() - (state.duration * 1000 - pausedRemainingMs);
+  startTimer();
+  focusAnswerInput();
+}
+
+function showQuestion(idx) {
+  state.currentQ = idx;
+  state.answerTimestamps.push(Date.now()); // track when each question shown
+  const q = state.questions[idx];
+  const display = _el('questionDisplay');
+  if (display) {
+    display.innerHTML = `${q.question} <span class="equals">=</span> ?`;
+    display.style.animation = 'none';
+    requestAnimationFrame(() => { display.style.animation = ''; });
+  }
+
+  document.getElementById('q-current').textContent = idx + 1;
+  const inp = _el('answerInput');
+  if (inp) {
+    inp.value = '';
+    updateAnswerDisplay('');
+  }
+  const lf = document.getElementById('live-feedback');
+  if (lf) lf.textContent = '';
+  focusAnswerInput();
+}
+
+function startTimer() {
+  const bar = document.getElementById('timer-bar');
+  const display = document.getElementById('timer-display');
+  const dur = state.duration;
+
+  let lastBeepSec = -1;
+  state.timerInterval = setInterval(() => {
+    const elapsed = (Date.now() - state.sessionStartTime) / 1000;
+    const rem = Math.max(0, dur - elapsed);
+    state.timeRemaining = rem;
+
+    const secs = Math.ceil(rem);
+    display.textContent = secs;
+    bar.style.width = (rem / dur * 100) + '%';
+
+    // Color states
+    const colorClass = rem <= Math.max(5, dur * 0.2) ? 'red' : rem <= dur * 0.5 ? 'yellow' : '';
+    display.className = 'timer-display ' + colorClass;
+    bar.className = 'timer-bar ' + colorClass;
+
+    if (rem <= 0) {
+      clearInterval(state.timerInterval);
+      endQuiz();
+    }
+  }, 80);
+}
+
+function submitAnswer() {
+  if (!state.quizActive) return;
+  // Honeypot check — bots fill hidden fields
+  const hp = _el('honeypot');
+  if (hp && hp.value !== '') {
+    state.honeypotTripped = true;
+    state.cheated = true;
+    endQuiz();
+    return;
+  }
+  const inp = _el('answerInput');
+  if (!inp) return; // safety guard
+  const raw = inp.value.replace(/[^0-9]/g, '').trim();
+  const given = raw === '' ? null : parseInt(raw, 10);
+  const q = state.questions[state.currentQ];
+  const correct = q.answer;
+
+  soundSubmit();
+
+  // Live corrections (soromath-style) — flash + optional beep
+  if (settings.liveCorrections && given !== null) {
+    const display = document.getElementById('answer-display');
+    const lf = document.getElementById('live-feedback');
+    if (given === correct) {
+      if (display) display.classList.add('correct');
+      if (lf) lf.textContent = '✓ CORRECT';
+      soundCorrect();
+    } else {
+      if (display) display.classList.add('wrong');
+      if (lf) lf.textContent = `✗ ${correct}`;
+      soundWrong();
+    }
+    state.lastCorrect = given === correct;
+  }
+
+  state.answers.push({ given, correct, skipped: raw === '' });
+  updateAnswerDisplay('');
+
+  const nextIdx = state.currentQ + 1;
+  if (nextIdx >= state.questions.length) {
+    endQuiz();
+  } else {
+    showQuestion(nextIdx);
+  }
+}
+
+function endQuiz() {
+  if (state.timerInterval) clearInterval(state.timerInterval);
+  state.quizActive = false;
+  document.removeEventListener('contextmenu', document._quizContextBlock);
+
+  const elapsed = (Date.now() - state.sessionStartTime) / 1000;
+  state.timeRemaining = Math.max(0, state.duration - elapsed);
+
+  // Pastikan semua 20 soal tercatat — soal yang belum terjawab = skipped
+  while (state.answers.length < state.questions.length) {
+    state.answers.push({ given: null, correct: state.questions[state.answers.length].answer, skipped: true });
+  }
+
+  showResults();
+}
+
+// ======================== RESULTS ========================
+async function showResults() {
+  const answers = state.answers;
+  let correct = 0, wrong = 0;
+  answers.forEach(a => {
+    if (!a.skipped && a.given !== null) {
+      if (a.given === a.correct) correct++;
+      else wrong++;
+    }
+  });
+
+  const timeRemMs = Math.round(state.timeRemaining * 1000);
+  const timeRemSec = (timeRemMs / 1000).toFixed(3);
+  const elapsedSec = Math.max(1, state.duration - state.timeRemaining);
+  const cpm = correct > 0 ? Math.round(correct / elapsedSec * 60) : 0;
+
+  // Show CPM in results header (soromath-style performance metric)
+  const cpmEl = document.getElementById('res-cpm');
+  if (cpmEl) cpmEl.textContent = `${cpm}`;
+
+  // Render score breakdown (preview sebelum server confirm)
+  const diffLabels = { easy:'Easy', normal:'Normal', hard:'Hard', human_calculator:'Human Calculator' };
+  document.getElementById('score-rows').innerHTML = `
+    <div class="score-row"><span class="label">Submitting...</span><span class="value">⏳</span></div>
+  `;
+
+  // Submit score to leaderboard (if not cheated)
+  let rank = null;
+  let serverBreakdown = null;
+  let serverScore = 0;
+  if (!state.cheated && correct > 0) {
+    const result = await submitScore({}, state.difficulty);
+    serverScore = result.score || 0;
+    serverBreakdown = result.breakdown;
+
+    if (result.error) {
+      // Server returned an error — show it clearly instead of silently showing 0
+      document.getElementById('score-rows').innerHTML = `
+        <div class="score-row"><span class="label" style="color:var(--accent3)">⚠️ Gagal submit ke server</span></div>
+        <div class="score-row"><span class="label" style="color:var(--muted);font-size:10px">${result.error}</span></div>
+        <div class="score-row total"><span class="label">FINAL SCORE</span><span class="value" style="color:var(--muted)">Tidak tersimpan</span></div>
+      `;
+    } else if (serverBreakdown) {
+      const bd = serverBreakdown;
+      document.getElementById('score-rows').innerHTML = `
+        <div class="score-row"><span class="label">Base (${correct} benar × 500)</span><span class="value">${bd.baseScore.toLocaleString()}</span></div>
+        <div class="score-row"><span class="label">Speed bonus (${timeRemSec}s sisa, kuadratik)</span><span class="value green">+${bd.speedBonus.toLocaleString()}</span></div>
+        <div class="score-row"><span class="label">Streak bonus (max ${bd.maxStreak} beruntun)</span><span class="value green">+${bd.streakBonus.toLocaleString()}</span></div>
+        <div class="score-row"><span class="label">Penalty (${wrong} salah × 200)</span><span class="value red">−${bd.penalty.toLocaleString()}</span></div>
+        <div class="score-row"><span class="label">Difficulty ×${bd.multiplier}</span><span class="value">${diffLabels[state.difficulty]}</span></div>
+        <div class="score-row total"><span class="label">FINAL SCORE</span><span class="value">${serverScore.toLocaleString()}</span></div>
+      `;
+    } else if (serverScore > 0) {
+      // Skor ada tapi tidak mengalahkan rekor — tetap tampilkan breakdown lengkap
+      const bd = serverBreakdown;
+      const keptMsg = result.message ? `<div class="score-row"><span class="label" style="color:var(--orange)">${result.message}</span></div>` : '';
+      if (bd) {
+        document.getElementById('score-rows').innerHTML = `
+          ${keptMsg}
+          <div class="score-row"><span class="label">Base (${correct} benar × 500)</span><span class="value">${bd.baseScore.toLocaleString()}</span></div>
+          <div class="score-row"><span class="label">Speed bonus (${timeRemSec}s sisa, kuadratik)</span><span class="value green">+${bd.speedBonus.toLocaleString()}</span></div>
+          <div class="score-row"><span class="label">Streak bonus (max ${bd.maxStreak} beruntun)</span><span class="value green">+${bd.streakBonus.toLocaleString()}</span></div>
+          <div class="score-row"><span class="label">Penalty (${wrong} salah × 200)</span><span class="value red">−${bd.penalty.toLocaleString()}</span></div>
+          <div class="score-row"><span class="label">Difficulty ×${bd.multiplier}</span><span class="value">${diffLabels[state.difficulty]}</span></div>
+          <div class="score-row total"><span class="label">FINAL SCORE</span><span class="value">${serverScore.toLocaleString()}</span></div>
+        `;
+      } else {
+        document.getElementById('score-rows').innerHTML = `
+          ${keptMsg}
+          <div class="score-row total"><span class="label">FINAL SCORE</span><span class="value">${serverScore.toLocaleString()}</span></div>
+        `;
+      }
+    } else {
+      document.getElementById('score-rows').innerHTML = `
+        <div class="score-row total"><span class="label">FINAL SCORE</span><span class="value">${serverScore.toLocaleString()}</span></div>
+      `;
+    }
+
+    // Selalu fetch leaderboard terbaru untuk tampilkan rank — baik submitted maupun kept
+    if (serverScore > 0) {
+      const updated = await fetchLeaderboard(true);
+      if (updated) {
+        ['easy','normal','hard','human_calculator'].forEach(d => {
+          state.leaderboard[d] = updated[d] || [];
+        });
+        // Cari rank: username cocok (score bisa saja skor lama yang lebih tinggi)
+        const entries = state.leaderboard[state.difficulty];
+        const idx = entries.findIndex(e => e.username === state.username);
+        rank = idx >= 0 ? idx + 1 : null;
+      }
+    }
+  } else if (!state.cheated) {
+    document.getElementById('score-rows').innerHTML = `
+      <div class="score-row total"><span class="label">FINAL SCORE</span><span class="value">0</span></div>
+    `;
+  }
+
+  // Render review table
+  document.getElementById('res-correct').textContent = correct;
+  document.getElementById('res-wrong').textContent = wrong;
+  const tbody = document.getElementById('review-tbody');
+  tbody.innerHTML = answers.map((a, i) => {
+    const q = state.questions[i];
+    const isCorrect = !a.skipped && a.given === a.correct;
+    const isSkipped = a.skipped || a.given === null;
+    return `<tr>
+      <td>${i+1}</td>
+      <td class="q-col">${q.question}</td>
+      <td class="${isSkipped ? 'skipped' : 'your-col'}">${isSkipped ? 'skipped' : a.given}</td>
+      <td class="ans-col">${a.correct}</td>
+      <td class="result-col">${isSkipped ? '—' : isCorrect ? '✅' : '❌'}</td>
+    </tr>`;
+  }).join('');
+  const rankMsg = document.getElementById('rank-msg');
+  rankMsg.className = 'results-rank-msg';
+  const diffLabel = { easy:'Easy', normal:'Normal', hard:'Hard', human_calculator:'Human Calculator' }[state.difficulty];
+
+  if (state.cheated) {
+    rankMsg.textContent = 'Your score was not submitted — tab switching was detected.';
+    rankMsg.classList.add('cheated');
+  } else if (rank === 1) {
+    rankMsg.innerHTML = `🏆 You're the #1 player on ${diffLabel}!`;
+    rankMsg.classList.add('gold');
+  } else if (rank === 2) {
+    rankMsg.innerHTML = `🥈 You're 2nd place on ${diffLabel}!`;
+    rankMsg.classList.add('silver');
+  } else if (rank === 3) {
+    rankMsg.innerHTML = `🥉 3rd place on ${diffLabel}!`;
+    rankMsg.classList.add('bronze');
+  } else if (rank && rank <= 10) {
+    rankMsg.innerHTML = `You made the Top 10 on ${diffLabel}! You're #${rank}!`;
+    rankMsg.classList.add('top10');
+  } else if ((state.difficulty === 'hard' || state.difficulty === 'human_calculator') && correct >= 6) {
+    rankMsg.innerHTML = `Impressive! Finishing ${correct} on ${diffLabel} already beats most people.`;
+    rankMsg.classList.add('impressive');
+  } else {
+    rankMsg.innerHTML = `Great effort, ${state.username}! You got ${correct}/20. Keep it up!`;
+    rankMsg.classList.add('normal-r');
+  }
+
+  // Record local profile stats (XP, streak, achievements, history) — adapted from
+  // soromath completed-tests + Braincup XP/streak/achievements + MathTraining stats.
+  if (!state.cheated) {
+    recordGame({
+      op: state.operation,
+      diff: state.difficulty,
+      correct,
+      wrong,
+      score: serverScore > 0 ? serverScore : (state.cheated ? 0 : calculateScore(correct, wrong, state.timeRemaining, state.difficulty).final),
+      timeRemMs,
+    });
+  }
+
+  showScreen('results');
+}
+
+// ======================== TOAST ========================
+function showToast(msg, duration = 2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// ======================== INIT & EVENTS ========================
+
+// updateStartBtn harus di scope global karena dipanggil dari startCountdown()
+// Dev mode (?dev) bypasses the Turnstile gate so the app can be tested locally
+// where the domain-bound Turnstile sitekey won't produce a token.
+function isDevMode() {
+  return /[?&]dev(&|$)/.test(location.search);
+}
+
+function updateStartBtn() {
+  const btnStart = document.getElementById('btn-start');
+  if (!btnStart) return;
+  const hasUsername = state.username.length >= 2;
+  const hasTurnstile = !!state.turnstileToken || isDevMode();
+  btnStart.disabled = !hasUsername || !hasTurnstile;
+  if (hasUsername && !hasTurnstile) {
+    btnStart.title = 'Menunggu verifikasi Cloudflare...';
+  } else {
+    btnStart.title = '';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  setupAntiCheat();
+
+  // Username input
+  const usernameInput = document.getElementById('username-input');
+  const btnStart = document.getElementById('btn-start');
+
+
+  // Cloudflare Turnstile init
+  if (window.turnstile) {
+    window.turnstile.render('#turnstile-container', {
+      sitekey: '0x4AAAAAADCvgX50R5TBLsNc',
+      theme: 'dark',
+      callback: (token) => {
+        state.turnstileToken = token;
+        updateStartBtn();
+      },
+      'expired-callback': () => {
+        state.turnstileToken = '';
+        updateStartBtn();
+      },
+      'error-callback': () => {
+        state.turnstileToken = '';
+      },
+    });
+  } else {
+    // Fallback: kalau script belum load, tunggu
+    window.addEventListener('load', () => {
+      if (window.turnstile) {
+        window.turnstile.render('#turnstile-container', {
+          sitekey: '0x4AAAAAADCvgX50R5TBLsNc',
+          theme: 'dark',
+          callback: (token) => {
+            state.turnstileToken = token;
+            updateStartBtn();
+          },
+          'expired-callback': () => {
+            state.turnstileToken = '';
+            updateStartBtn();
+          },
+        });
+      }
+    });
+  }
+
+  // Honeypot monitor — real users never touch this
+  const _hpWatcher = setInterval(() => {
+    const hp = _el('honeypot');
+    if (hp && hp.value !== '') {
+      clearInterval(_hpWatcher);
+      state.honeypotTripped = true;
+      if (state.quizActive) { state.cheated = true; endQuiz(); }
+    }
+  }, 500);
+
+  // Pre-fill
+  const savedUsername = localStorage.getItem('lastUsername') || '';
+  usernameInput.value = savedUsername;
+  validateUsername(savedUsername);
+
+  usernameInput.addEventListener('input', () => {
+    // Enforce rules live
+    let val = usernameInput.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+    if (usernameInput.value !== val) usernameInput.value = val;
+    validateUsername(val);
+  });
+
+  function validateUsername(val) {
+    const valid = val.length >= 2 && val.length <= 20 && /^[a-z0-9_]+$/.test(val);
+    state.username = valid ? val : '';
+    updateStartBtn();
+  }
+
+  btnStart.addEventListener('click', () => {
+    if (!state.username) return;
+    localStorage.setItem('lastUsername', state.username);
+    document.getElementById('diff-greeting').textContent = `Ready, ${state.username}?`;
+    showScreen('difficulty');
+  });
+
+  // ── Load local profile + settings + apply theme ──
+  loadProfile();
+  loadSettings();
+  state.duration = settings.duration || 40;
+  document.querySelectorAll('.dur-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.dur, 10) === state.duration);
+  });
+  applyTheme(settings.theme);
+  renderProfile();
+  renderAchievements();
+
+  // ── Operation selector ──
+  document.querySelectorAll('.op-card').forEach(card => {
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.op-card').forEach(c => c.classList.remove('active'));
+      card.classList.add('active');
+      state.operation = card.dataset.op;
+    });
+  });
+
+  // ── Duration selector ──
+  document.querySelectorAll('.dur-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.dur-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.duration = parseInt(btn.dataset.dur, 10);
+      settings.duration = state.duration;
+      saveSettings();
+    });
+  });
+
+  // ── Settings modal ──
+  document.getElementById('btn-settings').addEventListener('click', () => {
+    if (state.quizActive) pauseQuiz('SETTINGS', 'Settings are disabled mid-quiz. Resume to keep playing.');
+    else document.getElementById('settings-overlay').classList.add('show');
+  });
+  document.getElementById('btn-settings-close').addEventListener('click', () => {
+    document.getElementById('settings-overlay').classList.remove('show');
+  });
+  document.getElementById('settings-overlay').addEventListener('click', (e) => {
+    if (e.target.id === 'settings-overlay') document.getElementById('settings-overlay').classList.remove('show');
+  });
+
+  const bindToggle = (id, key) => {
+    const el = document.getElementById(id);
+    el.checked = settings[key];
+    el.addEventListener('change', () => {
+      settings[key] = el.checked;
+      saveSettings();
+      if (key === 'sound' && el.checked) beep(660, 0.08);
+      if (key === 'keypad' || key === 'keypadAscending') setupKeypad();
+    });
+  };
+  bindToggle('set-live-corrections', 'liveCorrections');
+  bindToggle('set-keypad', 'keypad');
+  bindToggle('set-keypad-asc', 'keypadAscending');
+  bindToggle('set-sound', 'sound');
+
+  // Theme dots
+  const themeDots = document.getElementById('theme-dots');
+  themeDots.innerHTML = Object.keys(THEMES).map(t =>
+    `<div class="theme-dot ${settings.theme === t ? 'active' : ''}" data-theme="${t}" style="background:${THEMES[t].vars['--accent']}"></div>`
+  ).join('');
+  themeDots.querySelectorAll('.theme-dot').forEach(dot => {
+    dot.addEventListener('click', () => {
+      settings.theme = dot.dataset.theme;
+      saveSettings();
+      applyTheme(settings.theme);
+    });
+  });
+
+  // Reset profile
+  document.getElementById('btn-reset-profile').addEventListener('click', () => {
+    if (confirm('Reset your local profile (XP, stats, achievements)? This cannot be undone.')) resetProfile();
+  });
+
+  // Pause modal resume
+  document.getElementById('pause-resume-btn').addEventListener('click', resumeQuiz);
+
+  // Keypad setup (initial)
+  setupKeypad();
+
+  // Difficulty selection
+  document.querySelectorAll('.diff-card').forEach(card => {
+    card.addEventListener('click', () => {
+      startCountdown(card.dataset.diff);
+    });
+  });
+
+  document.getElementById('diff-back-btn').addEventListener('click', () => showScreen('home'));
+
+  // Answer input — Enter to submit (use live lookup via _el since ID is obfuscated)
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && state.quizActive) submitAnswer();
+  });
+
+  // Restart on Enter at results (soromath-style)
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !state.quizActive && document.getElementById('screen-results').classList.contains('active')) {
+      const btn = document.getElementById('btn-play-again');
+      btn.click();
+    }
+  });
+
+  // Results buttons
+  document.getElementById('btn-play-again').addEventListener('click', () => {
+    // Harus kembali ke home dulu untuk Turnstile re-verify sebelum main lagi
+    showScreen('home');
+    loadLeaderboard(true);
+    renderProfile();
+    renderAchievements();
+    // Scroll ke atas (form username)
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  document.getElementById('btn-change-player').addEventListener('click', () => {
+    showScreen('home');
+    loadLeaderboard(true);
+    renderProfile();
+    renderAchievements();
+  });
+
+  document.getElementById('btn-view-lb').addEventListener('click', () => {
+    showScreen('home');
+    loadLeaderboard(true); // force refresh saat klik tombol lihat leaderboard
+    renderProfile();
+    renderAchievements();
+    // Scroll to leaderboard
+    setTimeout(() => {
+      document.querySelector('.leaderboard-section').scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  });
+
+  // Leaderboard tabs
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.activeTab = btn.dataset.tab;
+      renderLeaderboard(state.activeTab);
+    });
+  });
+
+
+  // Load leaderboard
+  loadLeaderboard();
+});
+</script>
+</body>
+</html>

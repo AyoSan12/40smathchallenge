@@ -8,14 +8,18 @@ export const config = {
 };
 
 // ── Helper: verifikasi HMAC session token ────────────────────────────────────
-async function verifySessionToken(token, secret) {
+async function verifySessionToken(token, secret, clientIp) {
   if (!token || typeof token !== 'string') return { ok: false, reason: 'No token' };
 
   const parts = token.split('.');
-  if (parts.length !== 3) return { ok: false, reason: 'Malformed token' };
+  if (parts.length !== 4) return { ok: false, reason: 'Malformed token' };
 
-  const [timestamp, nonce, receivedSig] = parts;
-  const payload = `${timestamp}.${nonce}`;
+  const [timestamp, nonce, ipFingerprint, receivedSig] = parts;
+  const payload = `${timestamp}.${nonce}.${ipFingerprint}`;
+
+  // Token must be bound to the same IP that issued it (anti-token-theft).
+  const expectedIp = await hashIp(clientIp);
+  if (ipFingerprint !== expectedIp) return { ok: false, reason: 'IP mismatch' };
 
   const encoder = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
@@ -44,6 +48,17 @@ async function verifySessionToken(token, secret) {
 
   const ageSeconds = (Date.now() - ts) / 1000;
   return { ok: true, ageSeconds, nonce };
+}
+
+// Deterministic IP fingerprint (hex) — must match api/start.js.
+async function hashIp(ip) {
+  try {
+    const data = new TextEncoder().encode(`ip:${ip}`);
+    const buf = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 16);
+  } catch {
+    return '0000000000000000';
+  }
 }
 
 // ── Helper: cek & tandai token sudah dipakai (Redis) ─────────────────────────
@@ -133,7 +148,7 @@ export default async function handler(req) {
     });
   }
 
-  const { username, difficulty, questions, userAnswers, timeRemaining, sessionToken, answerTimestamps } = body;
+  const { username, difficulty, operation, duration, questions, userAnswers, timeRemaining, sessionToken, answerTimestamps } = body;
 
   const fail = (status, msg) => new Response(JSON.stringify({ error: msg }), {
     status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -149,7 +164,7 @@ export default async function handler(req) {
 
   // ── 2. Verifikasi session token ───────────────────────────────────────────
   console.log(`[TOKEN DEBUG] parts=${sessionToken?.split('.').length} secretLen=${SESSION_SECRET?.length}`);
-  const { ok, ageSeconds, nonce, reason } = await verifySessionToken(sessionToken, SESSION_SECRET);
+  const { ok, ageSeconds, nonce, reason } = await verifySessionToken(sessionToken, SESSION_SECRET, clientIp);
   if (!ok) {
     console.warn(`[TOKEN INVALID] ${username} — ${reason}`);
     return fail(403, 'Session token tidak valid. Mulai quiz dari awal.');
@@ -233,13 +248,19 @@ export default async function handler(req) {
   if (!Array.isArray(questions) || questions.length !== 20) return fail(400, 'Need exactly 20 questions');
   if (!Array.isArray(userAnswers) || userAnswers.length !== 20) return fail(400, 'Need exactly 20 answers');
 
-  // ── 7. Validasi timeRemaining (dalam MILIDETIK) ───────────────────────────
-  const TR_MS = parseFloat(timeRemaining);
-  if (isNaN(TR_MS) || TR_MS < 0 || TR_MS > 40000) return fail(400, 'Invalid time');
+  // ── 7. Validasi operation, duration & timeRemaining (dalam MILIDETIK) ─────
+  const VALID_OPERATIONS = ['multiplication', 'addition', 'subtraction', 'division', 'mixed'];
+  if (!VALID_OPERATIONS.includes(operation)) return fail(400, 'Invalid operation');
 
-  // ageSeconds mencakup: waktu di layar difficulty + countdown 3s + waktu quiz 40s
+  const durSec = parseFloat(duration);
+  const DURATION = (durSec > 0 && durSec <= 300) ? durSec : 40;
+
+  const TR_MS = parseFloat(timeRemaining);
+  if (isNaN(TR_MS) || TR_MS < 0 || TR_MS > DURATION * 1000 + 50) return fail(400, 'Invalid time');
+
+  // ageSeconds mencakup: waktu di layar difficulty + countdown 3s + waktu quiz DURATION s
   // Tambah buffer 60 detik untuk waktu user memilih difficulty
-  const maxPossibleMs = Math.max(0, (40 - (ageSeconds - 60)) * 1000) + 5000;
+  const maxPossibleMs = Math.max(0, (DURATION - (ageSeconds - 60)) * 1000) + 5000;
   if (TR_MS > maxPossibleMs) {
     console.warn(`[TIME CHEAT] ${username} — TR=${TR_MS}ms tapi token age=${ageSeconds.toFixed(2)}s`);
     return fail(400, 'timeRemaining tidak masuk akal.');
@@ -254,20 +275,13 @@ export default async function handler(req) {
     const q = questions[i];
     if (!q || typeof q.question !== 'string') return fail(400, `Bad question at ${i}`);
 
-    const match = q.question.match(/^(\d+)\s*[×x]\s*(\d+)$/);
-    if (!match) return fail(400, `Malformed question at ${i}`);
+    const parsed = parseQuestion(q.question, operation, difficulty);
+    if (!parsed.ok) return fail(400, `${parsed.error} at question ${i}`);
 
-    const a = parseInt(match[1]);
-    const b = parseInt(match[2]);
-
-    const pairKey = [Math.min(a, b), Math.max(a, b)].join('x');
+    const { correctAns, pairKey } = parsed;
     if (usedPairs.has(pairKey)) return fail(400, `Duplicate question at ${i}`);
     usedPairs.add(pairKey);
 
-    const rangeError = validateRange(a, b, difficulty);
-    if (rangeError) return fail(400, `${rangeError} at question ${i}`);
-
-    const correctAns = a * b;
     const ua = userAnswers[i];
     if (ua !== null && ua !== '' && ua !== undefined) {
       answered++;
@@ -345,11 +359,13 @@ export default async function handler(req) {
           'Content-Type': 'application/json',
           'apikey': SUPABASE_SERVICE_KEY,
           'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+          'Prefer': 'params=single-object',
         },
         body: JSON.stringify({
           p_username: username.toLowerCase().trim(),
           p_score: finalScore,
           p_difficulty: difficulty,
+          p_operation: operation || 'multiplication',
           p_correct: correct,
           p_wrong: wrong,
           p_time_remaining: TR_MS,
@@ -361,8 +377,9 @@ export default async function handler(req) {
 
     if (!dbRes.ok) {
       const errText = await dbRes.text();
-      console.error('Supabase RPC failed:', errText);
-      return fail(500, 'Database error');
+      console.error(`[SUPABASE ERROR] status=${dbRes.status} difficulty=${difficulty} username=${username} score=${finalScore} body=${errText}`);
+      // Return detail ke client untuk debugging — bisa diremove setelah produksi stabil
+      return fail(500, `Database error [${dbRes.status}]: ${errText.slice(0, 200)}`);
     }
 
     const rpcResult = await dbRes.json();
@@ -373,6 +390,7 @@ export default async function handler(req) {
       return new Response(JSON.stringify({
         score: finalScore,
         submitted: false,
+        breakdown,
         message: `Skor kamu (${finalScore}) tidak mengalahkan rekor sebelumnya (${rpcResult.score}). Coba lagi!`,
       }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
@@ -390,8 +408,149 @@ export default async function handler(req) {
   });
 }
 
-// ── Validasi range soal per difficulty ───────────────────────────────────────
-function validateRange(a, b, difficulty) {
+// ── Parse + validate a single question (multi-operation) ──────────────────────
+// Supports: multiplication (a × b), addition (a + b), subtraction (a − b),
+// division (a ÷ b, exact), squares (n²). "mixed" auto-detects the operator per
+// question; fixed operations enforce their own operator.
+function parseQuestion(q, operation, difficulty) {
+  const detected = detectOp(q);
+  if (operation !== 'mixed' && detected !== operation) {
+    return { ok: false, error: 'Operator mismatch' };
+  }
+
+  if (detected === 'squares') {
+    const m = q.match(/^(\d+)\s*²$/);
+    if (!m) return { ok: false, error: 'Malformed question' };
+    const a = parseInt(m[1], 10);
+    const err = validateRange('squares', a, a, difficulty);
+    if (err) return { ok: false, error: err };
+    return { ok: true, a, b: a, correctAns: a * a, pairKey: `sq:${a}` };
+  }
+
+  const RE = {
+    multiplication: /^(\d+)\s*[×x]\s*(\d+)$/,
+    addition:       /^(\d+)\s*\+\s*(\d+)$/,
+    subtraction:    /^(\d+)\s*[−-]\s*(\d+)$/,
+    division:       /^(\d+)\s*[÷/]\s*(\d+)$/,
+  };
+  const m = q.match(RE[detected]);
+  if (!m) return { ok: false, error: 'Malformed question' };
+  const a = parseInt(m[1], 10);
+  const b = parseInt(m[2], 10);
+
+  const err = validateRange(detected, a, b, difficulty);
+  if (err) return { ok: false, error: err };
+
+  let correctAns, pairKey;
+  switch (detected) {
+    case 'multiplication':
+      correctAns = a * b;
+      pairKey = [Math.min(a, b), Math.max(a, b)].join('x');
+      break;
+    case 'addition':
+      correctAns = a + b;
+      pairKey = [Math.min(a, b), Math.max(a, b)].join('+');
+      break;
+    case 'subtraction':
+      correctAns = a - b;
+      pairKey = `${a}-${b}`;
+      break;
+    case 'division':
+      if (b === 0) return { ok: false, error: 'Divide by zero' };
+      if (a % b !== 0) return { ok: false, error: 'Non-integer division' };
+      correctAns = a / b;
+      pairKey = `${a}/${b}`;
+      break;
+  }
+  return { ok: true, a, b, correctAns, pairKey };
+}
+
+function detectOp(q) {
+  if (/[×x]/.test(q)) return 'multiplication';
+  if (/\+/.test(q)) return 'addition';
+  if (/[−-]/.test(q)) return 'subtraction';
+  if (/[÷/]/.test(q)) return 'division';
+  if (/²/.test(q)) return 'squares';
+  return 'multiplication';
+}
+
+// ── Validasi range soal per operation + difficulty ────────────────────────────
+function validateRange(op, a, b, difficulty) {
+  switch (op) {
+    case 'multiplication':
+      return validateMultiplicationRange(a, b, difficulty);
+    case 'addition':
+      switch (difficulty) {
+        case 'easy':
+          if (a < 2 || a > 20 || b < 2 || b > 20 || a + b > 40) return 'Easy addition out of range';
+          return null;
+        case 'normal':
+          if (a < 11 || a > 99 || b < 11 || b > 99) return 'Normal addition out of range';
+          return null;
+        case 'hard':
+          if (a < 101 || a > 499 || b < 101 || b > 499) return 'Hard addition out of range';
+          return null;
+        case 'human_calculator':
+          if (a < 500 || a > 999 || b < 500 || b > 999) return 'HC addition out of range';
+          return null;
+      }
+      return 'Unknown difficulty';
+    case 'subtraction':
+      switch (difficulty) {
+        case 'easy':
+          if (a < 10 || a > 99 || b < 1 || b > 9) return 'Easy subtraction out of range';
+          return null;
+        case 'normal':
+          if (a < 21 || a > 99 || b < 11 || b > 99) return 'Normal subtraction out of range';
+          return null;
+        case 'hard':
+          if (a < 201 || a > 999 || b < 101 || b > 500) return 'Hard subtraction out of range';
+          return null;
+        case 'human_calculator':
+          if (a < 1001 || a > 9999 || b < 501 || b > 999) return 'HC subtraction out of range';
+          return null;
+      }
+      return 'Unknown difficulty';
+    case 'division':
+      if (b === 0) return 'Divide by zero';
+      const quotient = a / b;
+      switch (difficulty) {
+        case 'easy':
+          if (b < 2 || b > 5 || quotient < 2 || quotient > 9) return 'Easy division out of range';
+          return null;
+        case 'normal':
+          if (b < 2 || b > 9 || quotient < 2 || quotient > 9) return 'Normal division out of range';
+          return null;
+        case 'hard':
+          if (b < 3 || b > 12 || quotient < 3 || quotient > 12) return 'Hard division out of range';
+          return null;
+        case 'human_calculator':
+          if (a > 225 || b < 7 || b > 15 || quotient < 7 || quotient > 15) return 'HC division out of range';
+          return null;
+      }
+      return 'Unknown difficulty';
+    case 'squares':
+      switch (difficulty) {
+        case 'easy':
+          if (a < 2 || a > 12) return 'Easy square out of range';
+          return null;
+        case 'normal':
+          if (a < 11 || a > 25) return 'Normal square out of range';
+          return null;
+        case 'hard':
+          if (a < 15 || a > 40) return 'Hard square out of range';
+          return null;
+        case 'human_calculator':
+          if (a < 25 || a > 75) return 'HC square out of range';
+          return null;
+      }
+      return 'Unknown difficulty';
+    default:
+      return 'Unknown operation';
+  }
+}
+
+function validateMultiplicationRange(a, b, difficulty) {
   switch (difficulty) {
     case 'easy': {
       const ok = (

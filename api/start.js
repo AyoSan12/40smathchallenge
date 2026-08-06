@@ -78,9 +78,13 @@ export default async function handler(req) {
   }
 
   // ── Generate HMAC session token ───────────────────────────────────────────
+  // Token structure: timestamp.nonce.ipFingerprint.signature
+  // ipFingerprint binds the token to the issuing IP so a token stolen/replayed
+  // from another IP is rejected server-side (hardening adapted from best practice).
   const timestamp = Date.now().toString();
   const nonce = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
-  const payload = `${timestamp}.${nonce}`;
+  const ipFingerprint = await hashIp(clientIp);
+  const payload = `${timestamp}.${nonce}.${ipFingerprint}`;
 
   const encoder = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
@@ -107,4 +111,15 @@ export default async function handler(req) {
       'Cache-Control': 'no-store',
     },
   });
+}
+
+// Deterministic IP fingerprint (hex) so tokens are bound to the caller's IP.
+async function hashIp(ip) {
+  try {
+    const data = new TextEncoder().encode(`ip:${ip}`);
+    const buf = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 16);
+  } catch {
+    return '0000000000000000';
+  }
 }

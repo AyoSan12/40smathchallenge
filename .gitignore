@@ -1,0 +1,14 @@
+# Local backup archive
+40smathchallenge.zip
+
+# Secrets — never commit
+.env
+.env.local
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Vercel
+.vercel/

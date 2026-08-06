@@ -1,442 +1,154 @@
-// api/submit.js — Server-side score validator
-// Menerima jawaban mentah dari client, hitung ulang skor, tulis ke Supabase.
-// Client TIDAK PERNAH mengirim skor langsung — hanya soal + jawaban + sessionToken.
-// sessionToken diterbitkan oleh /api/start, ditandatangani HMAC, dan hanya bisa dipakai SEKALI.
+-- =============================================================================
+-- 40s Math Challenge — Emergency Cleanup + Schema Migration
+-- Run this in the Supabase SQL Editor.
+--
+-- What it does:
+--   1. Creates the scores table (idempotent) if it does not exist.
+--   2. Adds the new `operation` column for the multi-operation feature.
+--   3. Fixes the unique index to include `season` so each user keeps ONE best
+--      score per difficulty PER season.
+--   4. (Re)creates `upsert_score_if_higher` RPC used by /api/submit.js.
+--   5. Creates the `app_config` table + `increment_season` RPC used by the
+--      weekly-reset cron (/api/weekly-reset.js).
+--   6. Runs an emergency cleanup of bot/spam/duplicate rows.
+-- =============================================================================
 
-export const config = {
-  runtime: 'edge',
-};
+-- ── 1. scores table (idempotent) ────────────────────────────────────────────
+create table if not exists scores (
+  id bigint generated always as identity primary key,
+  username text not null,
+  score integer not null,
+  correct integer not null default 0,
+  wrong integer not null default 0,
+  time_remaining integer not null default 0,
+  difficulty text not null,
+  operation text not null default 'multiplication',
+  session_token text,
+  season integer not null default 2,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
 
-// ── Helper: verifikasi HMAC session token ────────────────────────────────────
-async function verifySessionToken(token, secret) {
-  if (!token || typeof token !== 'string') return { ok: false, reason: 'No token' };
+-- ── 2. Add operation column on existing installs ────────────────────────────
+alter table scores add column if not exists operation text default 'multiplication';
+alter table scores add column if not exists updated_at timestamptz default now();
 
-  const parts = token.split('.');
-  if (parts.length !== 3) return { ok: false, reason: 'Malformed token' };
+-- ── 3. Fix unique constraint: best score per user per difficulty PER SEASON ─
+drop index if exists scores_username_difficulty_idx;
+create unique index scores_username_difficulty_season_idx
+  on scores (lower(trim(username)), difficulty, season);
 
-  const [timestamp, nonce, receivedSig] = parts;
-  const payload = `${timestamp}.${nonce}`;
+-- Index for leaderboard queries
+create index if not exists scores_difficulty_score_idx
+  on scores (difficulty, season, score desc);
 
-  const encoder = new TextEncoder();
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
+-- ── 4. upsert_score_if_higher RPC (used by /api/submit.js) ─────────────────
+-- Server-side "keep highest score per user per difficulty per season".
+-- Returns: { action: 'inserted' | 'updated' | 'kept', score, id }
+create or replace function upsert_score_if_higher(
+  p_username text,
+  p_score integer,
+  p_difficulty text,
+  p_operation text default 'multiplication',
+  p_correct integer default 0,
+  p_wrong integer default 0,
+  p_time_remaining integer default 0,
+  p_session_token text default null,
+  p_season integer default 2
+) returns json
+language plpgsql security definer
+as $$
+declare
+  v_id bigint;
+  v_prev_score integer;
+  v_action text;
+  v_username text := lower(trim(p_username));
+begin
+  select id, score into v_id, v_prev_score
+  from scores
+  where lower(trim(username)) = v_username
+    and difficulty = p_difficulty
+    and season = p_season
+  limit 1;
 
-  const sigBuffer = await crypto.subtle.sign('HMAC', keyMaterial, encoder.encode(payload));
-  const expectedSig = Array.from(new Uint8Array(sigBuffer))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
+  if v_id is null then
+    insert into scores (username, score, correct, wrong, time_remaining, difficulty, operation, session_token, season)
+    values (v_username, p_score, p_correct, p_wrong, p_time_remaining, p_difficulty, coalesce(p_operation, 'multiplication'), p_session_token, p_season)
+    returning id into v_id;
+    v_action := 'inserted';
+    return json_build_object('action', v_action, 'score', p_score, 'id', v_id);
+  end if;
 
-  // Constant-time comparison untuk cegah timing attack
-  if (receivedSig.length !== expectedSig.length) return { ok: false, reason: 'Signature mismatch' };
-  let diff = 0;
-  for (let i = 0; i < expectedSig.length; i++) {
-    diff |= receivedSig.charCodeAt(i) ^ expectedSig.charCodeAt(i);
-  }
-  if (diff !== 0) return { ok: false, reason: 'Signature invalid' };
+  if p_score > v_prev_score then
+    update scores
+    set score = p_score,
+        correct = p_correct,
+        wrong = p_wrong,
+        time_remaining = p_time_remaining,
+        operation = coalesce(p_operation, 'multiplication'),
+        session_token = p_session_token,
+        updated_at = now()
+    where id = v_id;
+    v_action := 'updated';
+    return json_build_object('action', v_action, 'score', p_score, 'id', v_id);
+  end if;
 
-  const ts = parseInt(timestamp, 10);
-  if (isNaN(ts)) return { ok: false, reason: 'Invalid timestamp' };
+  return json_build_object('action', 'kept', 'score', v_prev_score, 'id', v_id);
+end;
+$$;
 
-  const ageSeconds = (Date.now() - ts) / 1000;
-  return { ok: true, ageSeconds, nonce };
-}
+-- ── 5. app_config + increment_season RPC (used by /api/weekly-reset.js) ─────
+create table if not exists app_config (
+  key text primary key,
+  value integer not null default 2
+);
+insert into app_config (key, value) values ('current_season', 2)
+  on conflict (key) do nothing;
 
-// ── Helper: cek & tandai token sudah dipakai (Redis) ─────────────────────────
-async function consumeToken(nonce, ageSeconds) {
-  const REDIS_URL = (typeof process !== 'undefined' && process.env?.UPSTASH_REDIS_REST_URL)
-    || globalThis.__env__?.UPSTASH_REDIS_REST_URL;
-  const REDIS_TOKEN = (typeof process !== 'undefined' && process.env?.UPSTASH_REDIS_REST_TOKEN)
-    || globalThis.__env__?.UPSTASH_REDIS_REST_TOKEN;
+create or replace function increment_season() returns json
+language plpgsql security definer
+as $$
+declare
+  v_new integer;
+begin
+  insert into app_config (key, value) values ('current_season', 2)
+    on conflict (key) do nothing;
+  update app_config set value = value + 1 where key = 'current_season'
+    returning value into v_new;
+  return json_build_object('new_season', v_new);
+end;
+$$;
 
-  if (!REDIS_URL || !REDIS_TOKEN) {
-    console.warn('Redis tidak tersedia, token replay check dilewati');
-    return { consumed: false };
-  }
+-- ── 6. Row Level Security ───────────────────────────────────────────────────
+alter table scores enable row level security;
 
-  const key = `used_token:${nonce}`;
-  // TTL = sisa waktu token, minimal 60 detik
-  const ttl = Math.max(60, Math.ceil(180 - ageSeconds));
+drop policy if exists "Anyone can read scores" on scores;
+create policy "Anyone can read scores"
+  on scores for select using (true);
 
-  // SET NX = hanya set kalau belum ada (atomic, anti-race-condition)
-  const res = await fetch(`${REDIS_URL}/set/${key}/1/ex/${ttl}/nx`, {
-    headers: { Authorization: `Bearer ${REDIS_TOKEN}` },
-  });
+drop policy if exists "Anyone can insert scores" on scores;
+create policy "Anyone can insert scores"
+  on scores for insert with check (true);
 
-  if (!res.ok) return { consumed: false };
+-- ── 7. Emergency cleanup ────────────────────────────────────────────────────
+-- a) Remove duplicate rows for the same user/difficulty/season — keep highest.
+delete from scores a
+using scores b
+where a.id < b.id
+  and lower(trim(a.username)) = lower(trim(b.username))
+  and a.difficulty = b.difficulty
+  and a.season = b.season
+  and a.score < b.score;
 
-  const data = await res.json();
-  // result === null berarti key sudah ada → token sudah pernah dipakai
-  return { consumed: data.result === null };
-}
+-- b) Remove scores with bot-pattern usernames (hex suffixes, high entropy).
+delete from scores
+where username ~* '^[a-z]+_[0-9a-f]{3,8}$'
+   or username ~* '[^aeiou]{5,}';
 
+-- c) Remove impossible / obviously-cheated scores (remaining time > max session 300s).
+delete from scores
+where correct > 0
+  and time_remaining > 300000;
 
-// ── Helper: cooldown per IP setelah submit berhasil ─────────────────────────
-async function checkAndSetCooldown(ip, REDIS_URL, REDIS_TOKEN) {
-  if (!REDIS_URL || !REDIS_TOKEN) return { onCooldown: false };
-  const key = `submit_cooldown:${ip}`;
-  // Cek apakah cooldown aktif
-  try {
-    const checkRes = await fetch(`${REDIS_URL}/get/${key}`, {
-      headers: { Authorization: `Bearer ${REDIS_TOKEN}` },
-    });
-    if (checkRes.ok) {
-      const data = await checkRes.json();
-      if (data.result !== null) {
-        return { onCooldown: true };
-      }
-    }
-  } catch {}
-  return { onCooldown: false };
-}
-
-async function setCooldown(ip, REDIS_URL, REDIS_TOKEN, seconds = 1800) {
-  if (!REDIS_URL || !REDIS_TOKEN) return;
-  const key = `submit_cooldown:${ip}`;
-  try {
-    await fetch(`${REDIS_URL}/set/${key}/1/ex/${seconds}`, {
-      headers: { Authorization: `Bearer ${REDIS_TOKEN}` },
-    });
-  } catch {}
-}
-
-// ── Main handler ─────────────────────────────────────────────────────────────
-export default async function handler(req) {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': 'https://40smathchallenge.vercel.app',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-  };
-
-  if (req.method === 'OPTIONS') return new Response(null, { status: 200, headers: corsHeaders });
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  // Extract IP for cooldown & rate checks
-  const clientIp = req.headers.get('x-real-ip')
-    || (req.headers.get('x-forwarded-for') || '').split(',')[0].trim()
-    || '127.0.0.1';
-
-  let body;
-  try {
-    body = await req.json();
-  } catch {
-    return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
-      status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  const { username, difficulty, questions, userAnswers, timeRemaining, sessionToken, answerTimestamps } = body;
-
-  const fail = (status, msg) => new Response(JSON.stringify({ error: msg }), {
-    status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
-
-  // ── 1. Ambil SECRET dari environment ─────────────────────────────────────
-  const SESSION_SECRET = (typeof process !== 'undefined' && process.env?.SESSION_SECRET)
-    || globalThis.__env__?.SESSION_SECRET;
-  if (!SESSION_SECRET) {
-    console.error('SESSION_SECRET not set');
-    return fail(500, 'Server config error');
-  }
-
-  // ── 2. Verifikasi session token ───────────────────────────────────────────
-  console.log(`[TOKEN DEBUG] parts=${sessionToken?.split('.').length} secretLen=${SESSION_SECRET?.length}`);
-  const { ok, ageSeconds, nonce, reason } = await verifySessionToken(sessionToken, SESSION_SECRET);
-  if (!ok) {
-    console.warn(`[TOKEN INVALID] ${username} — ${reason}`);
-    return fail(403, 'Session token tidak valid. Mulai quiz dari awal.');
-  }
-
-  if (ageSeconds > 180) {
-    return fail(400, 'Session sudah kadaluarsa. Refresh halaman dan coba lagi.');
-  }
-
-  const MIN_HUMAN_TIME = 8;
-  if (ageSeconds < MIN_HUMAN_TIME) {
-    console.warn(`[BOT DETECTED] ${username} — completed in ${ageSeconds.toFixed(2)}s`);
-    return fail(403, 'Waduuuh, kok cepet banget? Kamu manusia atau kalkulator? Skor ditolak ya!');
-  }
-
-  // ── 3. Cegah token replay — token hanya boleh dipakai SEKALI ─────────────
-  const { consumed } = await consumeToken(nonce, ageSeconds);
-  if (consumed) {
-    console.warn(`[REPLAY ATTACK] ${username} — token sudah dipakai`);
-    return fail(403, 'Token sudah digunakan. Mulai quiz baru untuk submit skor.');
-  }
-
-  // ── 3b. Cooldown check per IP ────────────────────────────────────────────
-  const REDIS_URL_CD = (typeof process !== 'undefined' && process.env?.UPSTASH_REDIS_REST_URL)
-    || globalThis.__env__?.UPSTASH_REDIS_REST_URL;
-  const REDIS_TOKEN_CD = (typeof process !== 'undefined' && process.env?.UPSTASH_REDIS_REST_TOKEN)
-    || globalThis.__env__?.UPSTASH_REDIS_REST_TOKEN;
-
-  const { onCooldown } = await checkAndSetCooldown(clientIp, REDIS_URL_CD, REDIS_TOKEN_CD);
-  if (onCooldown) {
-    return fail(429, 'Kamu baru saja submit! Tunggu 30 menit sebelum submit lagi. Gunakan waktu itu untuk latihan 😄');
-  }
-
-  // ── 3c. Variance analysis — bot beri delay seragam, manusia tidak ────────
-  if (Array.isArray(answerTimestamps) && answerTimestamps.length >= 4) {
-    const diffs = [];
-    for (let i = 1; i < answerTimestamps.length; i++) {
-      diffs.push(answerTimestamps[i] - answerTimestamps[i-1]);
-    }
-    if (diffs.length >= 3) {
-      const mean = diffs.reduce((a,b) => a+b, 0) / diffs.length;
-      const variance = diffs.reduce((s, d) => s + (d - mean) ** 2, 0) / diffs.length;
-      const stdDev = Math.sqrt(variance);
-      const cv = mean > 0 ? stdDev / mean : 0; // Coefficient of Variation
-      // Bot dengan random delay 800-1500ms: CV biasanya 0.1-0.25 (terlalu konsisten)
-      // Manusia: CV biasanya > 0.3 karena waktu berpikir sangat bervariasi
-      // Khusus human_calculator: lebih toleran karena soalnya susah
-      const minCV = difficulty === 'human_calculator' ? 0.15 : difficulty === 'hard' ? 0.20 : 0.25;
-      if (cv < minCV && mean < 2000 && diffs.length >= 5) {
-        console.warn(`[BOT VARIANCE] ${username} — CV=${cv.toFixed(3)} mean=${mean.toFixed(0)}ms stdDev=${stdDev.toFixed(0)}ms`);
-        return fail(403, 'Pola jawaban kamu terlalu seragam. Skor ditolak.');
-      }
-    }
-  }
-
-  // ── 4. Validasi username ─────────────────────────────────────────────────
-  if (!username || typeof username !== 'string') return fail(400, 'No username');
-  if (/[^\x00-\x7F]/.test(username)) {
-    return fail(400, 'Username tidak boleh pakai emoji atau karakter khusus');
-  }
-  if (!/^[a-z0-9_]{2,20}$/.test(username)) {
-    return fail(400, 'Username hanya boleh huruf kecil, angka, dan underscore (2-20 karakter)');
-  }
-  // Blokir username dengan suffix hex acak — pattern bot: word_4hexchars
-  // Contoh: taqtao_6fbe, hardcore_er3d
-  if (/^[a-z]+_[0-9a-f]{3,8}$/.test(username)) {
-    console.warn(`[BOT USERNAME] ${username} — hex suffix pattern`);
-    return fail(400, 'Username tidak diizinkan. Gunakan username yang bermakna.');
-  }
-
-  // Blokir username yang terlalu random (konsonan berturutan >= 5 = likely generated)
-  const _consonantRun = username.replace(/_/g, '').match(/[^aeiou]{5,}/gi);
-  if (_consonantRun && _consonantRun.length > 0) {
-    console.warn(`[BOT USERNAME] ${username} — high consonant entropy`);
-    return fail(400, 'Username tidak diizinkan. Gunakan username yang bermakna.');
-  }
-
-  const BLOCKED_PATTERNS = [
-    'hacker', 'cheat', 'spammer', 'fakebot', 'injector',
-    'bot', 'auto', 'script', 'hack', 'bypass', 'exploit',
-    'admin', 'root', 'system', 'null', 'undefined',
-    'taqtao', 'taotaq',  // known bot prefixes
-    // kata kasar umum
-    'anjing', 'kontol', 'memek', 'ngentot', 'bangsat', 'babi', 'goblok',
-    'idiot', 'fuck', 'shit', 'ass', 'bitch', 'nigger', 'nazi',
-  ];
-  if (BLOCKED_PATTERNS.some(p => username.includes(p))) {
-    return fail(400, 'Username tidak diizinkan');
-  }
-
-  // ── 5. Validasi difficulty ────────────────────────────────────────────────
-  const VALID_DIFFS = ['easy', 'normal', 'hard', 'human_calculator'];
-  if (!VALID_DIFFS.includes(difficulty)) return fail(400, 'Invalid difficulty');
-
-  // ── 6. Validasi array soal & jawaban ─────────────────────────────────────
-  if (!Array.isArray(questions) || questions.length !== 20) return fail(400, 'Need exactly 20 questions');
-  if (!Array.isArray(userAnswers) || userAnswers.length !== 20) return fail(400, 'Need exactly 20 answers');
-
-  // ── 7. Validasi timeRemaining (dalam MILIDETIK) ───────────────────────────
-  const TR_MS = parseFloat(timeRemaining);
-  if (isNaN(TR_MS) || TR_MS < 0 || TR_MS > 40000) return fail(400, 'Invalid time');
-
-  // ageSeconds mencakup: waktu di layar difficulty + countdown 3s + waktu quiz 40s
-  // Tambah buffer 60 detik untuk waktu user memilih difficulty
-  const maxPossibleMs = Math.max(0, (40 - (ageSeconds - 60)) * 1000) + 5000;
-  if (TR_MS > maxPossibleMs) {
-    console.warn(`[TIME CHEAT] ${username} — TR=${TR_MS}ms tapi token age=${ageSeconds.toFixed(2)}s`);
-    return fail(400, 'timeRemaining tidak masuk akal.');
-  }
-
-  // ── 8. Re-score di server ─────────────────────────────────────────────────
-  let correct = 0, wrong = 0, answered = 0;
-  let currentStreak = 0, maxStreak = 0, streakBonus = 0;
-  const usedPairs = new Set();
-
-  for (let i = 0; i < 20; i++) {
-    const q = questions[i];
-    if (!q || typeof q.question !== 'string') return fail(400, `Bad question at ${i}`);
-
-    const match = q.question.match(/^(\d+)\s*[×x]\s*(\d+)$/);
-    if (!match) return fail(400, `Malformed question at ${i}`);
-
-    const a = parseInt(match[1]);
-    const b = parseInt(match[2]);
-
-    const pairKey = [Math.min(a, b), Math.max(a, b)].join('x');
-    if (usedPairs.has(pairKey)) return fail(400, `Duplicate question at ${i}`);
-    usedPairs.add(pairKey);
-
-    const rangeError = validateRange(a, b, difficulty);
-    if (rangeError) return fail(400, `${rangeError} at question ${i}`);
-
-    const correctAns = a * b;
-    const ua = userAnswers[i];
-    if (ua !== null && ua !== '' && ua !== undefined) {
-      answered++;
-      if (parseInt(ua) === correctAns) {
-        correct++;
-        currentStreak++;
-        if (currentStreak > maxStreak) maxStreak = currentStreak;
-        if (currentStreak >= 3) streakBonus += 50;
-      } else {
-        wrong++;
-        currentStreak = 0;
-      }
-    } else {
-      currentStreak = 0;
-    }
-  }
-
-  // ── 9. Timing sanity check ────────────────────────────────────────────────
-  if (answered > 0 && ageSeconds < answered * 0.4) {
-    console.warn(`[CHEAT] ${username} — ${answered} jawaban dalam ${ageSeconds.toFixed(2)}s`);
-    return fail(400, 'Timing anomaly detected');
-  }
-
-  // ── 10. Hitung skor final — presisi milidetik ─────────────────────────────
-  // base        = correct × 500
-  // speed_bonus = TR_MS² ÷ divisor  (kuadratik — beda 100ms = beda rank)
-  // streak_bonus = +50 per jawaban benar beruntun ke-3 dst
-  // penalty     = wrong × 200
-  // final       = floor((base + speed + streak − penalty) × multiplier)
-  const scoringConfig = {
-    easy:             { multiplier: 1.0,  divisor: 1_600_000, penaltyPer: 200 },
-    normal:           { multiplier: 2.5,  divisor:   800_000, penaltyPer: 200 },
-    hard:             { multiplier: 5.0,  divisor:   400_000, penaltyPer: 200 },
-    human_calculator: { multiplier: 10.0, divisor:   200_000, penaltyPer: 200 },
-  };
-  const cfg        = scoringConfig[difficulty];
-  const baseScore  = correct * 500;
-  const speedBonus = correct > 0 ? Math.floor((TR_MS * TR_MS) / cfg.divisor) : 0;
-  const penalty    = wrong * cfg.penaltyPer;
-  const multiplier = cfg.multiplier;
-
-  let finalScore = Math.floor((baseScore + speedBonus + streakBonus - penalty) * multiplier);
-  if (finalScore < 0) finalScore = 0;
-
-  const breakdown = { baseScore, speedBonus, streakBonus, penalty, multiplier, maxStreak };
-
-  if (finalScore === 0) {
-    return new Response(JSON.stringify({ score: 0, submitted: false, breakdown }), {
-      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  // ── 11. Tulis ke Supabase dengan SERVICE KEY ──────────────────────────────
-  const SUPABASE_URL = (typeof process !== 'undefined' && process.env?.SUPABASE_URL)
-    || globalThis.__env__?.SUPABASE_URL;
-  const SUPABASE_SERVICE_KEY = (typeof process !== 'undefined' && process.env?.SUPABASE_SERVICE_KEY)
-    || globalThis.__env__?.SUPABASE_SERVICE_KEY;
-  const CURRENT_SEASON = parseInt(
-    (typeof process !== 'undefined' && process.env?.CURRENT_SEASON)
-    || globalThis.__env__?.CURRENT_SEASON
-    || '2'
-  );
-
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-    console.error('Missing Supabase env vars');
-    return fail(500, 'Server config error');
-  }
-
-  try {
-    const dbRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/rpc/upsert_score_if_higher`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_SERVICE_KEY,
-          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
-        },
-        body: JSON.stringify({
-          p_username: username.toLowerCase().trim(),
-          p_score: finalScore,
-          p_difficulty: difficulty,
-          p_correct: correct,
-          p_wrong: wrong,
-          p_time_remaining: TR_MS,
-          p_session_token: sessionToken,
-          p_season: CURRENT_SEASON,
-        }),
-      }
-    );
-
-    if (!dbRes.ok) {
-      const errText = await dbRes.text();
-      console.error('Supabase RPC failed:', errText);
-      return fail(500, 'Database error');
-    }
-
-    const rpcResult = await dbRes.json();
-    const action = rpcResult?.action;
-
-    // Kalau skor lama lebih tinggi, kasih tahu user
-    if (action === 'kept') {
-      return new Response(JSON.stringify({
-        score: finalScore,
-        submitted: false,
-        message: `Skor kamu (${finalScore}) tidak mengalahkan rekor sebelumnya (${rpcResult.score}). Coba lagi!`,
-      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-  } catch (e) {
-    console.error('Supabase fetch error:', e);
-    return fail(500, 'Network error');
-  }
-
-  // Set 30 menit cooldown untuk IP ini setelah submit berhasil
-  await setCooldown(clientIp, REDIS_URL_CD, REDIS_TOKEN_CD, 1800);
-
-  return new Response(JSON.stringify({ score: finalScore, submitted: true, breakdown }), {
-    status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
-}
-
-// ── Validasi range soal per difficulty ───────────────────────────────────────
-function validateRange(a, b, difficulty) {
-  switch (difficulty) {
-    case 'easy': {
-      const ok = (
-        ((a >= 2 && a <= 5) && (b >= 2 && b <= 9)) ||
-        ((b >= 2 && b <= 5) && (a >= 2 && a <= 9))
-      );
-      if (!ok) return 'Easy operand out of range';
-      if (a * b >= 50) return 'Easy product too large';
-      return null;
-    }
-    case 'normal':
-      if (a < 2 || a > 9 || b < 2 || b > 9) return 'Normal operand out of range';
-      return null;
-
-    case 'hard':
-      if (a < 6 || a > 12 || b < 6 || b > 12) return 'Hard operand out of range';
-      if (a === 10 || b === 10) return 'Hard cannot use x10';
-      return null;
-
-    case 'human_calculator': {
-      const ok = (
-        ((a >= 13 && a <= 19) && (b >= 7 && b <= 12)) ||
-        ((b >= 13 && b <= 19) && (a >= 7 && a <= 12))
-      );
-      if (!ok) return 'HC operand out of range';
-      if (a * b > 230) return 'HC product too large';
-      if (a === 10 || b === 10) return 'HC cannot use x10';
-      return null;
-    }
-    default:
-      return 'Unknown difficulty';
-  }
-}
+-- d) Remove scores with zero points (they were never meant to be saved).
+delete from scores where score = 0;

@@ -33,18 +33,44 @@ export default async function middleware(request) {
   const url = new URL(request.url);
   const path = url.pathname;
 
+  // ── 0. Security headers on every API response ────────────────────────────
+  const SECURITY_HEADERS = {
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'X-XSS-Protection': '0',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  };
+
+  // ── 0b. Body size limit — reject oversized payloads (compressed is ~10KB) ─
+  if (request.method === 'POST') {
+    const cl = parseInt(request.headers.get('content-length') || '0', 10);
+    if (cl > 60_000) {
+      return new Response('Payload terlalu besar.', {
+        status: 413,
+        headers: { ...SECURITY_HEADERS, 'Content-Type': 'text/plain' },
+      });
+    }
+  }
+
   // ── 1. Blokir User-Agent bot yang jelas ──────────────────────────────────
   const ua = (request.headers.get('user-agent') || '').toLowerCase();
   const isBot = BOT_UA_PATTERNS.some(p => ua.includes(p));
   if (isBot) {
-    return new Response('Bot tidak diizinkan.', { status: 403 });
+    return new Response('Bot tidak diizinkan.', {
+      status: 403,
+      headers: { ...SECURITY_HEADERS, 'Content-Type': 'text/plain' },
+    });
   }
 
   // ── 2. Wajib ada Content-Type: application/json untuk POST ───────────────
   if (request.method === 'POST') {
     const ct = request.headers.get('content-type') || '';
     if (!ct.includes('application/json')) {
-      return new Response('Content-Type harus application/json.', { status: 415 });
+      return new Response('Content-Type harus application/json.', {
+        status: 415,
+        headers: { ...SECURITY_HEADERS, 'Content-Type': 'text/plain' },
+      });
     }
   }
 
@@ -60,6 +86,7 @@ export default async function middleware(request) {
     return new Response('Terlalu banyak mencoba! Tunggu 10 menit lagi ya.', {
       status: 429,
       headers: {
+        ...SECURITY_HEADERS,
         'Content-Type': 'text/plain',
         'X-RateLimit-Limit': limit.toString(),
         'X-RateLimit-Remaining': remaining.toString(),
@@ -68,5 +95,9 @@ export default async function middleware(request) {
     });
   }
 
-  return next();
+  const res = next();
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) {
+    try { res.headers.set(k, v); } catch {}
+  }
+  return res;
 }

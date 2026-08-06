@@ -18,19 +18,34 @@ This app turns that debate into a challenge anyone can take — now with advance
 
 ## Features
 
+- **5 operation modes** — Multiplication (classic), Addition, Subtraction, Division, and Mixed
 - **4 difficulty levels** — from kids-friendly Easy to the brutal Human Calculator mode
+- **Configurable session length** — 30s / 40s / 60s / 120s
 - **Live global leaderboard** — powered by Supabase, no login required
+- **XP & Level system** — earn XP per game, level up (Novice → Grandmaster titles)
+- **Daily streak** — consecutive-day bonus + achievements
+- **Achievements** — 11 unlockable milestones (perfect rounds, gold scores, streaks, more)
+- **Personal profile** — games played, best score, accuracy, and CPM tracked locally
+- **Settings panel** — theme (4 schemes), sounds, on-screen keypad, keypad layout, live corrections
+- **On-screen number keypad** — phone or calculator layout, toggleable
+- **Live corrections** — optional instant ✓/✗ feedback with sound
 - **Enterprise-grade anti-cheat system** — multi-layered security to prevent bots and cheaters
 - **Server-side validation** — all scores validated and recalculated on server
-- **HMAC-signed session tokens** — cryptographically signed tokens issued by `/api/start`, verified server-side before any score is accepted
+- **HMAC-signed session tokens** — cryptographically signed tokens issued by `/api/start`, verified server-side before any score is accepted; now **bound to the issuing IP**
 - **Cloudflare Turnstile** — invisible bot CAPTCHA, runs silently in background without disrupting user experience
 - **Rate limiting** — 5 submissions per 10 minutes per IP, 10 start requests per 10 minutes per IP
 - **Bot detection** — blocks known bot User-Agents (curl, python, wget, axios, etc.) at middleware level
-- **Origin & Referer validation** — only requests from allowed domains are processed
-- **Timing anomaly detection** — detects inhumanly fast completion times (<8 seconds for 20 questions)
+- **Payload size limits** — middleware rejects oversized request bodies (413)
+- **Security headers** — nosniff, DENY framing, strict referrer policy, permission policy on every API response
+- **Timing anomaly detection** — detects inhumanly fast completion times
 - **Mobile-friendly** — numeric keypad on mobile, responsive layout
 - **Zero client-side dependencies** — pure HTML/CSS/JS frontend
 - **Server-side Edge Functions** — powered by Vercel Edge Runtime
+
+> **Adapted from open-source references** — this version integrates features inspired by
+> `soromath` (operations, sessions, profile/CPM stats), `MathTraining` (operation mixes, session lengths),
+> `Braincup` (XP/levels, streaks, achievements, keypad, themes, pause-on-modal) and
+> `Arithmetic-Game-with-Leaderboards-and-Login` (per-mode challenges). See the changelog at the bottom.
 
 ---
 
@@ -46,11 +61,16 @@ This app turns that debate into a challenge anyone can take — now with advance
 | **Middleware** | Origin/Referer validation | Rejects requests not originating from the allowed app domain |
 | **Middleware** | Content-Type enforcement | POST requests must send `application/json`, rejects raw form submissions |
 | **Middleware** | Dual rate limiting | `/api/start`: 10 req/10min — `/api/submit`: 5 req/10min — per IP via Redis sliding window |
+| **Middleware** | Payload size limit | POST bodies > 60KB rejected (413) |
+| **Middleware** | Security headers | `nosniff`, `DENY` framing, strict referrer, permission policy on all API responses |
 | **Server-side** | HMAC session token | Token issued by `/api/start`, cryptographically signed with SHA-256 HMAC, verified before scoring |
+| **Server-side** | IP-bound tokens | Token fingerprint tied to the issuing IP — replay from another IP is rejected |
 | **Server-side** | Session expiry | Tokens expire after 180 seconds — prevents replay attacks |
 | **Server-side** | Cloudflare Turnstile | Invisible CAPTCHA verified server-side on every submission |
 | **Server-side** | Timing validation | Minimum 8 seconds for 20 questions (0.4s per question human minimum) |
 | **Server-side** | Timing anomaly detection | Rejects if answered questions × 0.4s > elapsed time |
+| **Server-side** | Operation validation | Question operator must match the submitted operation; ranges validated per op+difficulty |
+| **Server-side** | Duration validation | `timeRemaining` must fit the declared session duration |
 | **Server-side** | Score recalculation | Server recalculates score from raw answers, prevents client manipulation |
 | **Server-side** | Question validation | Checks question difficulty ranges and duplicate questions |
 | **Database** | Conflict resolution | UPSERT with `on_conflict=username,difficulty` for highest score per user |
@@ -269,8 +289,10 @@ const SUPABASE_ANON_KEY = 'sb_publishable_...';
 ├── api/
 │   ├── start.js           # HMAC session token issuer (Edge Function)
 │   └── submit.js          # Server-side score validator (Edge Function)
-├── middleware.js          # Bot detection, origin check, dual rate limiting
+│   └── weekly-reset.js    # Season increment cron (Edge Function)
+├── middleware.js          # Bot detection, body limits, security headers, dual rate limiting
 ├── package.json          # Dependencies for Edge Functions
+├── emergency_cleanup.sql # Schema migration + RPC functions + cleanup (Supabase SQL Editor)
 ├── README.md             # This documentation
 └── .env.local           # Environment variables (not in git)
 ```
@@ -287,13 +309,19 @@ Submit quiz results for server-side validation.
 {
   "username": "player123",
   "difficulty": "normal",
+  "operation": "multiplication",
+  "duration": 40,
   "questions": [{"question": "7 × 9"}],
   "userAnswers": [63],
-  "timeRemaining": 15.5,
-  "sessionToken": "abc123",
-  "startTime": 1730000000000
+  "timeRemaining": 15500,
+  "sessionToken": "abc123"
 }
 ```
+
+**Notes on new fields:**
+- `operation` — `multiplication` | `addition` | `subtraction` | `division` | `mixed`. Must match the question operators.
+- `duration` — declared session length in seconds (max 300). Server validates `timeRemaining` against it.
+- `timeRemaining` — now in **milliseconds**, must be ≤ `duration × 1000`.
 
 **Response:**
 ```json
@@ -445,3 +473,52 @@ Found a vulnerability? Please report responsibly via GitHub Issues. We take secu
 ---
 
 **Live Fair. Play Fair. Score Fair.** 🏆
+
+---
+
+## 📋 Changelog — Features adapted from open-source references
+
+This release integrated systems and features from 5 open-source reference apps
+(see [the adaptation task](#) at the end of this file). Changes:
+
+### New gameplay
+- **5 operation modes** (`×`, `+`, `−`, `÷`, mixed) with per-op difficulty ranges.
+- **Configurable session length** (30/40/60/120s) instead of a fixed 40s.
+- **On-screen number keypad** with phone/calculator layout toggle.
+- **Live corrections** (optional): instant ✓/✗ flash + sound after each answer.
+- **CPM** (calculations per minute) shown on the results screen.
+
+### Progression systems (Braincup-inspired)
+- **XP & Level** — earn XP per game, quadratic level curve (`50·n²`), titles
+  Novice → Apprentice → Scholar → Sage → Master → Grandmaster, animated progress bar.
+- **Daily streak** — consecutive-day play counter with a daily XP bonus.
+- **Achievements** — 11 milestones: first win, perfect round, per-difficulty gold
+  scores, 10k total XP, 30-day streak, 10 games, all operations, 30+ CPM.
+
+### Local profile (soromath / MathTraining-inspired)
+- **Completed-test history** stored in `localStorage` with a tamper checksum.
+- **Personal stats** — games played, best score, accuracy %, best CPM.
+- Per-operation results recorded for future charting.
+
+### Settings & polish
+- **Settings panel** (⚙ button): 4 themes, sound toggle, keypad toggle + layout,
+  live-corrections toggle, profile reset.
+- **Pause-on-modal** — the quiz timer pauses while a modal is open.
+- **Restart on Enter** at the results screen.
+
+### Security hardening
+- **IP-bound HMAC session tokens** — token signature now includes a fingerprint of
+  the issuing IP; replay from a different IP is rejected.
+- **Operation-aware validation** — server parses each question, verifies the operator
+  matches the submitted operation, and range-checks per op + difficulty.
+- **Duration-aware timing** — `timeRemaining` must fit the declared session duration.
+- **Payload size limit** (60KB) and **security headers** on all API responses.
+- **SQL migration** (`emergency_cleanup.sql`) — adds the `operation` column, fixes the
+  unique index to include `season`, (re)creates `upsert_score_if_higher` and
+  `increment_season` RPCs, and cleans up duplicate/bot/impossible scores.
+
+### ⚠️ Required deployment steps
+1. Run `emergency_cleanup.sql` in the Supabase SQL Editor **before** deploying the new API.
+2. Deploy the updated `api/*` and `middleware.js` to Vercel together with `index.html`.
+3. Start / submit tokens are now 4-part (IP-bound); old cached tokens will be rejected,
+   which is expected.
