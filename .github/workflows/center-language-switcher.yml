@@ -1,0 +1,45 @@
+name: Center language switcher
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: "!contains(github.event.head_commit.message, '[skip lang-center]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Center language selector
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          old = '''  .language-switcher {\n    position: fixed;\n    top: 14px;\n    left: 14px;\n    z-index: 60;'''
+          new = '''  .language-switcher {\n    position: fixed;\n    top: 14px;\n    left: 50%;\n    transform: translateX(-50%);\n    z-index: 60;'''
+          if old in s:
+              s = s.replace(old, new, 1)
+          else:
+              raise SystemExit('language-switcher CSS block not found')
+          old_m = '''    .language-switcher { top: 10px; left: 10px; }'''
+          new_m = '''    .language-switcher { top: 10px; left: 50%; transform: translateX(-50%); }'''
+          if old_m in s:
+              s = s.replace(old_m, new_m, 1)
+          else:
+              raise SystemExit('mobile language-switcher CSS not found')
+          p.write_text(s, encoding='utf-8')
+      - name: Commit and remove one-time workflow
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          rm .github/workflows/center-language-switcher.yml
+          git add .github/workflows/center-language-switcher.yml
+          git commit -m 'Center language selector [skip lang-center]'
+          git push
