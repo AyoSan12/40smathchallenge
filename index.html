@@ -1281,10 +1281,10 @@
   }
 
 
-.language-switcher{position:fixed;top:14px;left:14px;z-index:60;display:flex;gap:3px;padding:3px;border:1px solid var(--border);border-radius:10px;background:rgba(26,26,38,.92);backdrop-filter:blur(6px)}
+.language-switcher{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:60;display:flex;gap:3px;padding:3px;border:1px solid var(--border);border-radius:10px;background:rgba(26,26,38,.92);backdrop-filter:blur(6px)}
 .lang-btn{min-width:34px;height:28px;padding:0 8px;border:0;border-radius:7px;background:transparent;color:var(--muted);font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:all .15s}
 .lang-btn.active{background:var(--accent);color:#0a0a0f}
-@media(max-width:520px){.language-switcher{top:10px;left:10px}.settings-btn{top:10px;right:10px}.lang-btn{min-width:31px;padding:0 6px;font-size:9px}}
+@media(max-width:520px){.language-switcher{top:10px;left:50%;transform:translateX(-50%).settings-btn{top:10px;right:10px}.lang-btn{min-width:31px;padding:0 6px;font-size:9px}}
 
   /* ======================== SETTINGS ======================== */
   .settings-btn {
