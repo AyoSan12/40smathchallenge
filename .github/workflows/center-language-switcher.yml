@@ -1,0 +1,48 @@
+name: Center language switcher
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: "!contains(github.event.head_commit.message, '[skip lang-center]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Center language selector
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          replacements = [
+              ('position:fixed;top:14px;left:14px;z-index:60;', 'position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:60;'),
+              ('@media(max-width:520px){.language-switcher{top:10px;left:10px}', '@media(max-width:520px){.language-switcher{top:10px;left:50%;transform:translateX(-50%)'),
+              ('  position: fixed;\n    top: 14px;\n    left: 14px;\n    z-index: 60;', '  position: fixed;\n    top: 14px;\n    left: 50%;\n    transform: translateX(-50%);\n    z-index: 60;'),
+              ('    .language-switcher { top: 10px; left: 10px; }', '    .language-switcher { top: 10px; left: 50%; transform: translateX(-50%); }'),
+          ]
+          changed = False
+          for old, new in replacements:
+              if old in s:
+                  s = s.replace(old, new, 1)
+                  changed = True
+          if not changed:
+              raise SystemExit('No language-switcher CSS pattern found')
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Commit change
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Center language selector [skip lang-center]'
+          git push
