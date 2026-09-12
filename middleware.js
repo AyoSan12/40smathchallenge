@@ -19,7 +19,7 @@ const startLimiter = new Ratelimit({
 });
 
 export const config = {
-  matcher: ['/', '/index.html', '/api/submit', '/api/start'],
+  matcher: ['/api/submit', '/api/start'],
 };
 
 // User-Agent yang jelas-jelas bot/script
@@ -32,31 +32,6 @@ const BOT_UA_PATTERNS = [
 export default async function middleware(request) {
   const url = new URL(request.url);
   const path = url.pathname;
-
-  // ── Season 1 compatibility patch ────────────────────────────────────────
-  // The deployed index.html still contains the old hardcoded Season 2 UI.
-  // Patch the HTML at the edge so production immediately reflects the
-  // database reset while keeping the existing static file as the source.
-  if (path === '/' || path === '/index.html') {
-    const res = next();
-    try {
-      const html = await res.text();
-      const fixedHtml = html
-        .replace(/const CURRENT_SEASON = 2;/g, `const CURRENT_SEASON = 1;\n  // Season 1 fresh-start reset: clear stale leaderboard/profile data once.\n  (function resetForSeason(){ try {\n    const markerKey = '40s_active_season';\n    if (localStorage.getItem(markerKey) !== String(CURRENT_SEASON)) {\n      localStorage.removeItem('40s_profile_v1');\n      localStorage.removeItem('40s_profile_sig_v1');\n      for (let i = localStorage.length - 1; i >= 0; i--) {\n        const k = localStorage.key(i);\n        if (k && /^lb_cache_s\\d+$/.test(k)) localStorage.removeItem(k);\n      }\n      localStorage.setItem(markerKey, String(CURRENT_SEASON));\n    }\n  } catch {} })();`)
-        .replace(/SEASON 2/g, 'SEASON 1');
-      const headers = new Headers(res.headers);
-      headers.delete('content-length');
-      headers.set('Cache-Control', 'no-store');
-      return new Response(fixedHtml, {
-        status: res.status,
-        statusText: res.statusText,
-        headers,
-      });
-    } catch (err) {
-      console.error('[SEASON PATCH] HTML rewrite failed:', err);
-      return res;
-    }
-  }
 
   // ── 0. Security headers on every API response ────────────────────────────
   const SECURITY_HEADERS = {
