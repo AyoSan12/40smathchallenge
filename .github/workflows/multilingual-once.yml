@@ -1,0 +1,40 @@
+name: Multilingual UI
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch UI and locale API
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html'); s=p.read_text(encoding='utf-8')
+          if 'id="language-switcher"' not in s:
+              css='''\n.language-switcher{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:60;display:flex;gap:3px;padding:3px;border:1px solid var(--border);border-radius:10px;background:rgba(26,26,38,.92);backdrop-filter:blur(6px)}\n.lang-btn{min-width:34px;height:28px;padding:0 8px;border:0;border-radius:7px;background:transparent;color:var(--muted);font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;cursor:pointer}.lang-btn.active{background:var(--accent);color:#0a0a0f}\n@media(max-width:520px){.language-switcher{top:10px;left:50%;transform:translateX(-50%)}.settings-btn{top:10px;right:10px}.lang-btn{min-width:31px;padding:0 6px;font-size:9px}}\n'''
+              s=s.replace('/* ======================== SETTINGS ======================== */',css+'/* ======================== SETTINGS ======================== */',1)
+              html='''<!-- Language selector -->\n<div class="language-switcher" id="language-switcher" role="group" aria-label="Language">\n<button class="lang-btn" data-lang="id" type="button">ID</button>\n<button class="lang-btn" data-lang="en" type="button">EN</button>\n<button class="lang-btn" data-lang="ja" type="button">JP</button>\n<button class="lang-btn" data-lang="ko" type="button">KR</button>\n</div>\n\n'''
+              s=s.replace('<!-- Settings button (global) -->',html+'<!-- Settings button (global) -->',1)
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Verify and finalize
+        shell: bash
+        run: |
+          grep -q 'id="language-switcher"' index.html
+          grep -q 'left:50%' index.html
+          grep -q 'transform:translateX(-50%)' index.html
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git rm .github/workflows/multilingual-once.yml
+          git commit -m 'Center language selector [skip multilingual]'
+          git push
