@@ -1,0 +1,54 @@
+name: Fix competitive modal transform
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate before patch
+        run: |
+          test -f competitive.js
+          node --check competitive.js
+          grep -F '#comp-toast{position:fixed' competitive.js
+          grep -F '.show{transform:translate(-50%,0)!important}' competitive.js
+      - name: Patch modal-only show rule
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('competitive.js')
+          s = p.read_text()
+          old = '.show{transform:translate(-50%,0)!important}'
+          new = '#comp-toast.show{transform:translate(-50%,0)!important}'
+          assert s.count(old) == 1, f'expected exactly one generic show rule, found {s.count(old)}'
+          s = s.replace(old, new)
+          p.write_text(s)
+          PY
+      - name: Validate after patch
+        run: |
+          node --check competitive.js
+          ! grep -F '.show{transform:translate(-50%,0)!important}' competitive.js
+          grep -F '#comp-toast.show{transform:translate(-50%,0)!important}' competitive.js
+          python - <<'PY'
+          from pathlib import Path
+          s = Path('competitive.js').read_text()
+          assert '#comp-mode-modal.show{display:flex}' in s
+          assert '#comp-toast.show{transform:translate(-50%,0)!important}' in s
+          assert 'document.body.appendChild(modal)' in s
+          print('competitive modal CSS assertions: PASS')
+          PY
+      - name: Commit fix and remove temporary workflow
+        run: |
+          rm .github/workflows/fix-competitive-modal.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add competitive.js .github/workflows/fix-competitive-modal.yml
+          git diff --cached --check
+          git commit -m 'Fix competitive mode modal positioning'
+          git push
