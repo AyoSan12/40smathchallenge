@@ -1,5 +1,4 @@
 {
-  "buildCommand": "node scripts/center-language-switcher.mjs",
   "outputDirectory": ".",
   "crons": [
     {
