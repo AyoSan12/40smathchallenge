@@ -22,27 +22,37 @@ jobs:
           from pathlib import Path
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
-          replacements = [
-              ('position:fixed;top:14px;left:14px;z-index:60;', 'position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:60;'),
-              ('@media(max-width:520px){.language-switcher{top:10px;left:10px}', '@media(max-width:520px){.language-switcher{top:10px;left:50%;transform:translateX(-50%)'),
-              ('  position: fixed;\n    top: 14px;\n    left: 14px;\n    z-index: 60;', '  position: fixed;\n    top: 14px;\n    left: 50%;\n    transform: translateX(-50%);\n    z-index: 60;'),
-              ('    .language-switcher { top: 10px; left: 10px; }', '    .language-switcher { top: 10px; left: 50%; transform: translateX(-50%); }'),
-          ]
+          old1 = 'position:fixed;top:14px;left:14px;z-index:60;'
+          new1 = 'position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:60;'
+          old2 = '@media(max-width:520px){.language-switcher{top:10px;left:10px}'
+          new2 = '@media(max-width:520px){.language-switcher{top:10px;left:50%;transform:translateX(-50%)}'
+          old3 = '  position: fixed;\n    top: 14px;\n    left: 14px;\n    z-index: 60;'
+          new3 = '  position: fixed;\n    top: 14px;\n    left: 50%;\n    transform: translateX(-50%);\n    z-index: 60;'
+          old4 = '    .language-switcher { top: 10px; left: 10px; }'
+          new4 = '    .language-switcher { top: 10px; left: 50%; transform: translateX(-50%); }'
           changed = False
-          for old, new in replacements:
+          for old, new in ((old1,new1),(old2,new2),(old3,new3),(old4,new4)):
               if old in s:
                   s = s.replace(old, new, 1)
                   changed = True
-          if not changed:
-              raise SystemExit('No language-switcher CSS pattern found')
           p.write_text(s, encoding='utf-8')
+          print('CENTER_PATCH_CHANGED=1' if changed else 'CENTER_PATCH_CHANGED=0')
           PY
 
-      - name: Commit change
+      - name: Commit patch and remove workflow
         shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html
-          git commit -m 'Center language selector [skip lang-center]'
+          if git diff --cached --quiet -- index.html; then
+            echo 'index.html already centered; removing one-time workflow.'
+            rm .github/workflows/center-language-switcher.yml
+            git add .github/workflows/center-language-switcher.yml
+            git commit -m 'Remove completed language centering workflow [skip lang-center]'
+          else
+            rm .github/workflows/center-language-switcher.yml
+            git add .github/workflows/center-language-switcher.yml
+            git commit -m 'Center language selector [skip lang-center]'
+          fi
           git push
