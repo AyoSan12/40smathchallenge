@@ -1,0 +1,60 @@
+name: Hide language selector outside home
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: "!contains(github.event.head_commit.message, '[skip lang-visibility]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch screen navigation
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          pattern = re.compile(
+              r"function showScreen\(id\) \{\n"
+              r"  document\.querySelectorAll\('\.screen'\)\.forEach\(s => s\.classList\.remove\('active'\)\);\n"
+              r"  document\.getElementById\(`screen-\$\{id\}`\)\.classList\.add\('active'\);\n"
+              r"\}",
+              re.M,
+          )
+
+          replacement = """function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(`screen-${id}`).classList.add('active');
+            const langSwitcher = document.getElementById('language-switcher');
+            if (langSwitcher) langSwitcher.style.display = id === 'home' ? 'flex' : 'none';
+          }"""
+
+          s2, n = pattern.subn(replacement, s, count=1)
+          if n != 1:
+              raise SystemExit('showScreen function pattern not found; aborting without changes')
+
+          p.write_text(s2, encoding='utf-8')
+          print('LANG_VISIBILITY_PATCH=1')
+          PY
+
+      - name: Commit and remove one-time workflow
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          rm .github/workflows/disable-language-switcher-after-home.yml
+          git add .github/workflows/disable-language-switcher-after-home.yml
+          git commit -m 'Hide language selector outside home [skip lang-visibility]'
+          git push
