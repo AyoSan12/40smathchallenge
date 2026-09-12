@@ -1,0 +1,42 @@
+name: Fix Season 1 frontend
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  normalize-season:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set frontend to Season 1
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          s2 = s.replace('const CURRENT_SEASON = 2;', 'const CURRENT_SEASON = 1;')
+          s2 = s2.replace('>SEASON 2</span>', '>SEASON 1</span>')
+          if s2 != s:
+              p.write_text(s2, encoding='utf-8')
+          PY
+
+      - name: Commit Season 1 frontend fix
+        shell: bash
+        run: |
+          if git diff --quiet -- index.html; then
+            echo 'index.html already uses Season 1.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Fix frontend season badge and season filter [skip season fix]'
+          git push
