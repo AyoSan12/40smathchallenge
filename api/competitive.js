@@ -362,7 +362,7 @@ async function handle(req) {
     if (!mid) return json(200,{ok:true,status:'idle'});
     const m=await loadMatch(mid); if(!m) return json(200,{ok:true,status:'idle'});
     advanceBot(m); if (Date.now()>=m.endAt && !m.finalized) await finalize(m);
-    if (m.finalized) { const p=await getProfile(identity.playerId,identity.username); return json(200,{ok:true,status:'finished',match:publicMatch(m,identity.playerId),result:m.finalResult,profile:{...p,rank:rankName(p.rankIndex),rankColor:rankColor(p.rankIndex)}}); }
+    if (m.finalized) { const p=await getProfile(identity.playerId,identity.username); const myResult=m.finalResult?.winnerSide==='draw'?'draw':(identity.playerId===m.players.a.id?m.finalResult?.resultA:m.finalResult?.resultB); const myRating=identity.playerId===m.players.a.id?m.finalResult?.a:m.finalResult?.b; return json(200,{ok:true,status:'finished',match:publicMatch(m,identity.playerId),result:{...m.finalResult,myResult,myRating},profile:{...p,rank:rankName(p.rankIndex),rankColor:rankColor(p.rankIndex)}}); }
     return json(200,{ok:true,status:'matched',match:publicMatch(m,identity.playerId)});
   }
   if (body.action === 'answer') {
@@ -382,7 +382,7 @@ async function handle(req) {
   if (body.action === 'finalize') {
     const m=await loadMatch(body.matchId); if(!m) return json(404,{error:'Match not found'});
     if(Date.now()<m.endAt) return json(409,{error:'Match still running'});
-    const result=await finalize(m); const p=await getProfile(identity.playerId,identity.username); return json(200,{ok:true,status:'finished',result,profile:{...p,rank:rankName(p.rankIndex),rankColor:rankColor(p.rankIndex)},match:publicMatch(m,identity.playerId)});
+    const result=await finalize(m); const p=await getProfile(identity.playerId,identity.username); const myResult=result?.winnerSide==='draw'?'draw':(identity.playerId===m.players.a.id?result?.resultA:result?.resultB); const myRating=identity.playerId===m.players.a.id?result?.a:result?.b; return json(200,{ok:true,status:'finished',result:{...result,myResult,myRating},profile:{...p,rank:rankName(p.rankIndex),rankColor:rankColor(p.rankIndex)},match:publicMatch(m,identity.playerId)});
   }
   return json(400,{error:'Unknown action'});
 }
