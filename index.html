@@ -1280,6 +1280,12 @@
     font-family: 'Space Grotesk', sans-serif;
   }
 
+
+.language-switcher{position:fixed;top:14px;left:14px;z-index:60;display:flex;gap:3px;padding:3px;border:1px solid var(--border);border-radius:10px;background:rgba(26,26,38,.92);backdrop-filter:blur(6px)}
+.lang-btn{min-width:34px;height:28px;padding:0 8px;border:0;border-radius:7px;background:transparent;color:var(--muted);font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:all .15s}
+.lang-btn.active{background:var(--accent);color:#0a0a0f}
+@media(max-width:520px){.language-switcher{top:10px;left:10px}.settings-btn{top:10px;right:10px}.lang-btn{min-width:31px;padding:0 6px;font-size:9px}}
+
   /* ======================== SETTINGS ======================== */
   .settings-btn {
     position: fixed;
@@ -1531,6 +1537,7 @@
 </head>
 <body>
 
+<div class="language-switcher" id="language-switcher" role="group" aria-label="Language"><button class="lang-btn" data-lang="id" type="button">ID</button><button class="lang-btn" data-lang="en" type="button">EN</button><button class="lang-btn" data-lang="ja" type="button">JP</button><button class="lang-btn" data-lang="ko" type="button">KR</button></div>
 <!-- Settings button (global) -->
 <button class="settings-btn" id="btn-settings" title="Settings">⚙</button>
 
@@ -1540,20 +1547,20 @@
     <div class="home-title">
       40s<span>Math</span>Challenge
     </div>
-    <div class="home-subtitle">20 questions · 40 seconds · no mercy</div>
+    <div class="home-subtitle" data-i18n="homeSubtitle">20 questions · 40 seconds · no mercy</div>
   </div>
 
   <div class="home-form">
-    <label class="form-label" for="username-input">Your Username</label>
+    <label class="form-label" data-i18n="usernameLabel" for="username-input">Your Username</label>
     <div class="input-row">
-      <span class="input-prefix">Hello, I'm</span>
+      <span class="input-prefix" data-i18n="helloPrefix">Hello, I'm</span>
       <input type="text" id="username-input" placeholder="enter_username" maxlength="20" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
     </div>
-    <div class="input-hint">lowercase · letters/numbers/underscore · 2–20 chars · no profanity</div>
+    <div class="input-hint" data-i18n="usernameHint">lowercase · letters/numbers/underscore · 2–20 chars · no profanity</div>
 
     <!-- Cloudflare Turnstile -->
     <div id="turnstile-container" style="margin-top:16px;display:flex;justify-content:center;"></div>
-    <button class="btn-start" id="btn-start" disabled>START CHALLENGE →</button>
+    <button class="btn-start" id="btn-start" disabled data-i18n="startChallenge">START CHALLENGE →</button>
   </div>
 
   <!-- ======================== PROFILE / XP / LEVEL ======================== -->
@@ -1583,13 +1590,13 @@
   <!-- ======================== ACHIEVEMENTS ======================== -->
   <div class="achievements-section">
     <h3 style="font-family:'Space Grotesk',sans-serif;font-size:11px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
-      Achievements <span id="ach-count" style="background:var(--card);border:1px solid var(--border);padding:2px 10px;border-radius:999px;font-size:10px;">0</span>
+      <span data-i18n="achievements">Achievements</span> <span id="ach-count" style="background:var(--card);border:1px solid var(--border);padding:2px 10px;border-radius:999px;font-size:10px;">0</span>
     </h3>
     <div class="ach-grid" id="ach-grid"></div>
   </div>
 
   <div class="leaderboard-section">
-    <h3>Leaderboard <span id="season-badge" style="font-size:0.6em;background:#b8860b;color:#fff;padding:2px 10px;border-radius:999px;vertical-align:middle;letter-spacing:1px;">SEASON 1</span></h3>
+    <h3><span data-i18n="leaderboard">Leaderboard</span> <span id="season-badge" style="font-size:0.6em;background:#b8860b;color:#fff;padding:2px 10px;border-radius:999px;vertical-align:middle;letter-spacing:1px;">SEASON 1</span></h3>
     <div class="tab-bar">
       <button class="tab-btn active" data-tab="easy">Easy</button>
       <button class="tab-btn" data-tab="normal">Normal</button>
@@ -1598,7 +1605,7 @@
     </div>
     <div class="leaderboard-table-container">
       <div class="leaderboard-list" id="leaderboard-list">
-        <div class="lb-empty">loading scores...</div>
+        <div class="lb-empty" data-i18n="loadingScores">loading scores...</div>
       </div>
     </div>
   </div>
@@ -1607,11 +1614,11 @@
 <!-- ======================== SCREEN 2: DIFFICULTY ======================== -->
 <div id="screen-difficulty" class="screen">
   <div class="diff-header">
-    <h2>PICK YOUR POISON</h2>
-    <p id="diff-greeting">Ready, player?</p>
+    <h2 data-i18n="pickPoison">PICK YOUR POISON</h2>
+    <p id="diff-greeting" data-i18n="readyPlayer">Ready, player?</p>
   </div>
 
-  <div class="op-section-label">Operation</div>
+  <div class="op-section-label" data-i18n="operation">Operation</div>
   <div class="op-grid" id="op-grid">
     <div class="op-card active" data-op="multiplication"><span class="op-symbol">×</span><span class="op-label">Multiply</span></div>
     <div class="op-card" data-op="addition"><span class="op-symbol">+</span><span class="op-label">Add</span></div>
@@ -1620,7 +1627,7 @@
     <div class="op-card" data-op="mixed"><span class="op-symbol">±</span><span class="op-label">Mixed</span></div>
   </div>
 
-  <div class="op-section-label">Time</div>
+  <div class="op-section-label" data-i18n="time">Time</div>
   <div class="duration-bar" id="duration-bar">
     <button class="dur-btn" data-dur="30">30s</button>
     <button class="dur-btn active" data-dur="40">40s</button>
@@ -1681,7 +1688,7 @@
       7 × 9 <span class="equals">=</span> ?
     </div>
     <div class="answer-input-wrap" id="answer-wrap">
-      <div class="answer-label">your answer</div>
+      <div class="answer-label" data-i18n="yourAnswer">your answer</div>
       <!-- Hidden input for keyboard capture -->
       <input type="tel" id="answer-input" class="answer-input-hidden" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" tabindex="0">
       <!-- Custom visual display -->
@@ -1690,7 +1697,7 @@
         <span class="answer-cursor"></span>
       </div>
     </div>
-    <div class="quiz-hint">press ENTER to submit · leave blank to skip</div>
+    <div class="quiz-hint" data-i18n="quizHint">press ENTER to submit · leave blank to skip</div>
     <div class="live-feedback" id="live-feedback"></div>
   </div>
 
@@ -1721,13 +1728,13 @@
   </div>
 
   <div class="score-breakdown" id="score-breakdown">
-    <div class="score-breakdown-title">Score Breakdown</div>
+    <div class="score-breakdown-title" data-i18n="scoreBreakdown">Score Breakdown</div>
     <div class="score-rows" id="score-rows"></div>
   </div>
 
   <div class="review-table-wrap">
     <div class="review-table-title">
-      <span>Question Review</span>
+      <span data-i18n="questionReview">Question Review</span>
       <div class="review-stats">
         <span class="review-stat"><span class="c" id="res-correct">0</span> correct</span>
         <span class="review-stat"><span class="w" id="res-wrong">0</span> wrong</span>
@@ -1748,15 +1755,15 @@
   </div>
 
   <div class="results-btns">
-    <button class="btn-primary" id="btn-play-again">PLAY AGAIN</button>
-    <button class="btn-secondary" id="btn-change-player">Change Player</button>
-    <button class="btn-secondary" id="btn-view-lb">View Leaderboard</button>
+    <button class="btn-primary" id="btn-play-again" data-i18n="playAgain">PLAY AGAIN</button>
+    <button class="btn-secondary" id="btn-change-player" data-i18n="changePlayer">Change Player</button>
+    <button class="btn-secondary" id="btn-view-lb" data-i18n="viewLeaderboard">View Leaderboard</button>
   </div>
 </div>
 
 <!-- ======================== COUNTDOWN OVERLAY ======================== -->
 <div id="countdown-overlay" style="display:none;">
-  <div class="countdown-label">Get Ready!</div>
+  <div class="countdown-label" data-i18n="getReady">Get Ready!</div>
   <div class="countdown-text" id="countdown-num">3</div>
 </div>
 
@@ -1776,10 +1783,10 @@
 <!-- ======================== SETTINGS MODAL ======================== -->
 <div id="settings-overlay">
   <div class="settings-panel">
-    <h2>SETTINGS <button class="settings-close" id="btn-settings-close">✕</button></h2>
+    <h2><span data-i18n="settings">SETTINGS</span> <button class="settings-close" id="btn-settings-close">✕</button></h2>
 
     <div class="settings-section">
-      <h3>Appearance</h3>
+      <h3 data-i18n="appearance">Appearance</h3>
       <div class="setting-row">
         <div><div class="setting-name">Theme</div><div class="setting-desc">Color scheme</div></div>
         <div class="theme-dots" id="theme-dots"></div>
@@ -1787,7 +1794,7 @@
     </div>
 
     <div class="settings-section">
-      <h3>Gameplay</h3>
+      <h3 data-i18n="gameplay">Gameplay</h3>
       <div class="setting-row">
         <div><div class="setting-name">Live corrections</div><div class="setting-desc">Instant ✓/✗ feedback + sound after each answer</div></div>
         <label class="switch"><input type="checkbox" id="set-live-corrections"><span class="slider"></span></label>
@@ -1807,7 +1814,7 @@
     </div>
 
     <div class="settings-section">
-      <h3>Data</h3>
+      <h3 data-i18n="data">Data</h3>
       <div class="setting-row">
         <div><div class="setting-name">Reset profile</div><div class="setting-desc">Clear local XP, stats &amp; achievements</div></div>
         <button class="btn-secondary" id="btn-reset-profile" style="width:auto;padding:8px 16px;font-size:11px;">Reset</button>
@@ -1819,9 +1826,9 @@
 <!-- ======================== PAUSE MODAL ======================== -->
 <div class="modal-scrim" id="pause-modal">
   <div class="modal-box">
-    <h2 id="pause-title">PAUSED</h2>
-    <p id="pause-msg">Game paused.</p>
-    <button class="btn-primary" id="pause-resume-btn" style="width:auto;padding:12px 28px;font-size:16px;">RESUME</button>
+    <h2 id="pause-title" data-i18n="paused">PAUSED</h2>
+    <p id="pause-msg" data-i18n="gamePaused">Game paused.</p>
+    <button class="btn-primary" id="pause-resume-btn" style="width:auto;padding:12px 28px;font-size:16px;" data-i18n="resume">RESUME</button>
   </div>
 </div>
 
@@ -3262,6 +3269,30 @@ document.addEventListener('DOMContentLoaded', () => {
   // Load leaderboard
   loadLeaderboard();
 });
+
+// ======================== MULTILINGUAL UI ========================
+const LANG_KEY='40s_language_v1'; let currentLang='en';
+const L={
+en:{homeSubtitle:'20 questions · 40 seconds · no mercy',usernameLabel:'Your Username',helloPrefix:"Hello, I'm",usernameHint:'lowercase · letters/numbers/underscore · 2–20 chars · no profanity',startChallenge:'START CHALLENGE →',achievements:'Achievements',leaderboard:'Leaderboard',loadingScores:'loading scores...',noScores:'NO SCORES YET — BE FIRST!',pickPoison:'PICK YOUR POISON',readyPlayer:'Ready, player?',operation:'Operation',time:'Time',opMultiply:'Multiply',opAdd:'Add',opSubtract:'Subtract',opDivide:'Divide',opMixed:'Mixed',easy:'EASY',normal:'NORMAL',hard:'HARD',humanCalculator:'HUMAN CALCULATOR',easyBadge:'everyone finishes',normalBadge:'standard challenge',hardBadge:"most can't finish",hcBadge:'show-off mode',easyDesc:'Small numbers, big confidence. Perfect warm-up.',normalDesc:'Classic multiplication tables. How many can you nail in 40 seconds?',hardDesc:'Bigger numbers, no ×10 shortcuts. 10–12 correct is already great.',hcDesc:'2-digit multiplication. Almost nobody finishes. 6–8 correct = elite.',back:'← BACK',yourAnswer:'your answer',quizHint:'press ENTER to submit · leave blank to skip',getReady:'Get Ready!',paused:'PAUSED',gamePaused:'Game paused.',resume:'RESUME',scoreBreakdown:'Score Breakdown',questionReview:'Question Review',playAgain:'PLAY AGAIN',changePlayer:'Change Player',viewLeaderboard:'View Leaderboard',settings:'SETTINGS',appearance:'Appearance',gameplay:'Gameplay',data:'Data',theme:'Theme',colorScheme:'Color scheme',liveCorrections:'Live corrections',liveCorrectionsDesc:'Instant ✓/✗ feedback + sound after each answer',onScreenKeypad:'On-screen keypad',onScreenKeypadDesc:'Show tap buttons during quiz',keypadLayout:'Keypad layout',keypadLayoutDesc:'1-2-3 on top (phone) vs 7-8-9 on top (calculator)',sounds:'Sounds',soundsDesc:'Correct / wrong beeps',resetProfile:'Reset profile',resetProfileDesc:'Clear local XP, stats & achievements',reset:'Reset',resetConfirm:'Reset your local profile (XP, stats, achievements)? This cannot be undone.',warning:'WARNING',firstWarning:'Tab switching detected! This is your first warning. Do it again and your score will be voided.',understood:'UNDERSTOOD — RESUME',scoreVoided:'SCORE VOIDED',finalCheat:'Tab switching detected again. Your score will NOT be submitted. Quiz ended.',seeResults:'SEE RESULTS',
+ach:{first_win:['First Blood','Complete your first quiz'],perfect_round:['Perfect Round','Answer all 20 correctly'],gold_easy:['Easy Master','Score 2,000+ on Easy'],gold_normal:['Normal Elite','Score 5,000+ on Normal'],gold_hard:['Hard Hitter','Score 10,000+ on Hard'],gold_hc:['Human Calculator','Score 10,000+ on HC'],xp_10k:['Mind Marathoner','Reach 10,000 total XP'],streak_30:['Iron Streak','30-day challenge streak'],history_10:['Consistency','Play 10 games'],all_ops:['Polyglot','Play all 5 operations'],speedster:['Speedster','Reach 30+ CPM in a game']}},
+id:{homeSubtitle:'20 soal · 40 detik · tanpa ampun',usernameLabel:'Username Kamu',helloPrefix:'Halo, saya',usernameHint:'huruf kecil · huruf/angka/underscore · 2–20 karakter · tanpa kata kasar',startChallenge:'MULAI TANTANGAN →',achievements:'Pencapaian',leaderboard:'Papan Peringkat',loadingScores:'memuat skor...',noScores:'BELUM ADA SKOR — JADI YANG PERTAMA!',pickPoison:'PILIH TANTANGANMU',readyPlayer:'Siap, pemain?',operation:'Operasi',time:'Waktu',opMultiply:'Kali',opAdd:'Tambah',opSubtract:'Kurang',opDivide:'Bagi',opMixed:'Campuran',easy:'MUDAH',normal:'NORMAL',hard:'SULIT',humanCalculator:'KALKULATOR MANUSIA',easyBadge:'semua bisa selesai',normalBadge:'tantangan standar',hardBadge:'kebanyakan tidak selesai',hcBadge:'mode pamer',easyDesc:'Angka kecil, bikin percaya diri. Pemanasan yang pas.',normalDesc:'Tabel perkalian klasik. Berapa banyak yang bisa kamu taklukkan dalam 40 detik?',hardDesc:'Angka lebih besar, tanpa trik ×10. 10–12 benar sudah hebat.',hcDesc:'Perkalian 2 digit. Hampir tak ada yang selesai. 6–8 benar = elite.',back:'← KEMBALI',yourAnswer:'jawabanmu',quizHint:'tekan ENTER untuk kirim · kosongkan untuk lewati',getReady:'Bersiap!',paused:'DIJEDA',gamePaused:'Permainan dijeda.',resume:'LANJUTKAN',scoreBreakdown:'Rincian Skor',questionReview:'Tinjauan Soal',playAgain:'MAIN LAGI',changePlayer:'Ganti Pemain',viewLeaderboard:'Lihat Papan Peringkat',settings:'PENGATURAN',appearance:'Tampilan',gameplay:'Permainan',data:'Data',theme:'Tema',colorScheme:'Skema warna',liveCorrections:'Koreksi langsung',liveCorrectionsDesc:'Umpan balik ✓/✗ + suara setelah setiap jawaban',onScreenKeypad:'Keypad di layar',onScreenKeypadDesc:'Tampilkan tombol ketuk saat bermain',keypadLayout:'Tata letak keypad',keypadLayoutDesc:'1-2-3 di atas (ponsel) vs 7-8-9 di atas (kalkulator)',sounds:'Suara',soundsDesc:'Bunyi benar / salah',resetProfile:'Reset profil',resetProfileDesc:'Hapus XP, statistik & pencapaian lokal',reset:'Reset',resetConfirm:'Reset profil lokalmu (XP, statistik, pencapaian)? Tindakan ini tidak bisa dibatalkan.',warning:'PERINGATAN',firstWarning:'Perpindahan tab terdeteksi! Ini peringatan pertama. Ulangi lagi dan skor akan dibatalkan.',understood:'MENGERTI — LANJUTKAN',scoreVoided:'SKOR DIBATALKAN',finalCheat:'Perpindahan tab terdeteksi lagi. Skormu TIDAK akan dikirim. Permainan berakhir.',seeResults:'LIHAT HASIL',ach:{first_win:['Pertama Menang','Selesaikan kuis pertamamu'],perfect_round:['Ronde Sempurna','Jawab semua 20 dengan benar'],gold_easy:['Master Mudah','Skor 2.000+ di Mudah'],gold_normal:['Elite Normal','Skor 5.000+ di Normal'],gold_hard:['Penghancur Sulit','Skor 10.000+ di Sulit'],gold_hc:['Kalkulator Manusia','Skor 10.000+ di KC'],xp_10k:['Maraton Pikiran','Capai total 10.000 XP'],streak_30:['Streak Besi','Streak tantangan 30 hari'],history_10:['Konsisten','Main 10 game'],all_ops:['Poliglot','Mainkan semua 5 operasi'],speedster:['Speedster','Capai 30+ CPM dalam satu game']}},
+ja:{homeSubtitle:'20問 · 40秒 · 容赦なし',usernameLabel:'ユーザー名',helloPrefix:'こんにちは、',usernameHint:'小文字 · 英字/数字/アンダースコア · 2〜20文字 · 不適切な言葉なし',startChallenge:'チャレンジ開始 →',achievements:'実績',leaderboard:'リーダーボード',loadingScores:'スコアを読み込み中...',noScores:'まだスコアなし — 最初の一人になろう！',pickPoison:'難易度を選ぼう',readyPlayer:'準備はいい？',operation:'計算',time:'時間',opMultiply:'掛け算',opAdd:'足し算',opSubtract:'引き算',opDivide:'割り算',opMixed:'ミックス',easy:'EASY',normal:'NORMAL',hard:'HARD',humanCalculator:'HUMAN CALCULATOR',easyBadge:'誰でも完走',normalBadge:'標準チャレンジ',hardBadge:'ほとんど完走できない',hcBadge:'腕自慢モード',easyDesc:'小さな数字で自信をつけよう。ちょうどいいウォームアップ。',normalDesc:'定番の九九。40秒で何問正解できる？',hardDesc:'大きな数字、×10の近道なし。10〜12問正解なら十分すごい。',hcDesc:'2桁の掛け算。ほとんど誰も完走できない。6〜8問正解でエリート。',back:'← 戻る',yourAnswer:'あなたの答え',quizHint:'ENTERで送信 · 空欄ならスキップ',getReady:'準備して！',paused:'一時停止',gamePaused:'ゲームを一時停止しています。',resume:'再開',scoreBreakdown:'スコア内訳',questionReview:'問題レビュー',playAgain:'もう一度プレイ',changePlayer:'プレイヤー変更',viewLeaderboard:'ランキングを見る',settings:'設定',appearance:'外観',gameplay:'ゲームプレイ',data:'データ',theme:'テーマ',colorScheme:'配色',liveCorrections:'即時判定',liveCorrectionsDesc:'各回答の直後に ✓/✗ と効果音を表示',onScreenKeypad:'画面キーパッド',onScreenKeypadDesc:'ゲーム中にタップボタンを表示',keypadLayout:'キーパッド配置',keypadLayoutDesc:'上段1-2-3（スマホ） / 7-8-9（電卓）',sounds:'サウンド',soundsDesc:'正解 / 不正解の効果音',resetProfile:'プロフィールをリセット',resetProfileDesc:'ローカルのXP・統計・実績を削除',reset:'リセット',resetConfirm:'ローカルプロフィール（XP・統計・実績）をリセットしますか？元に戻せません。',warning:'警告',firstWarning:'タブ切り替えを検出しました！これが最初の警告です。もう一度行うとスコアは無効になります。',understood:'了解 — 再開',scoreVoided:'スコア無効',finalCheat:'再びタブ切り替えを検出しました。スコアは送信されません。ゲーム終了です。',seeResults:'結果を見る',ach:{first_win:['ファーストブラッド','最初のクイズを完了'],perfect_round:['パーフェクト','20問すべて正解'],gold_easy:['EASY MASTER','EASYで2,000+'],gold_normal:['NORMAL ELITE','NORMALで5,000+'],gold_hard:['HARD HITTER','HARDで10,000+'],gold_hc:['HUMAN CALCULATOR','HCで10,000+'],xp_10k:['マインドマラソン','累計10,000 XP'],streak_30:['アイアンストリーク','30日連続チャレンジ'],history_10:['コンシステンシー','10ゲームプレイ'],all_ops:['ポリグロット','5つすべての計算をプレイ'],speedster:['スピードスター','1ゲームで30+ CPM']}},
+ko:{homeSubtitle:'20문제 · 40초 · 자비 없음',usernameLabel:'사용자 이름',helloPrefix:'안녕하세요, ',usernameHint:'소문자 · 영문/숫자/언더스코어 · 2~20자 · 비속어 금지',startChallenge:'챌린지 시작 →',achievements:'업적',leaderboard:'리더보드',loadingScores:'점수 불러오는 중...',noScores:'아직 점수 없음 — 첫 번째가 되어보세요!',pickPoison:'난이도를 골라보세요',readyPlayer:'준비됐나요?',operation:'연산',time:'시간',opMultiply:'곱셈',opAdd:'덧셈',opSubtract:'뺄셈',opDivide:'나눗셈',opMixed:'혼합',easy:'EASY',normal:'NORMAL',hard:'HARD',humanCalculator:'HUMAN CALCULATOR',easyBadge:'누구나 완주',normalBadge:'표준 도전',hardBadge:'대부분 완주 불가',hcBadge:'과시 모드',easyDesc:'작은 숫자로 자신감을 쌓아보세요. 완벽한 워밍업입니다.',normalDesc:'기본 곱셈표. 40초 동안 몇 문제를 맞힐 수 있을까요?',hardDesc:'더 큰 숫자, ×10 요령 없음. 10~12개 정답이면 훌륭합니다.',hcDesc:'두 자리 곱셈. 거의 아무도 완주하지 못합니다. 6~8개 정답이면 엘리트.',back:'← 돌아가기',yourAnswer:'정답 입력',quizHint:'ENTER를 눌러 제출 · 비워두면 건너뜀',getReady:'준비하세요!',paused:'일시 정지',gamePaused:'게임이 일시 정지되었습니다.',resume:'계속하기',scoreBreakdown:'점수 내역',questionReview:'문제 리뷰',playAgain:'다시 플레이',changePlayer:'플레이어 변경',viewLeaderboard:'리더보드 보기',settings:'설정',appearance:'외관',gameplay:'게임플레이',data:'데이터',theme:'테마',colorScheme:'색상 구성',liveCorrections:'즉시 채점',liveCorrectionsDesc:'각 답변 후 ✓/✗ 피드백과 효과음',onScreenKeypad:'화면 키패드',onScreenKeypadDesc:'게임 중 터치 버튼 표시',keypadLayout:'키패드 배열',keypadLayoutDesc:'상단 1-2-3(휴대폰) / 7-8-9(계산기)',sounds:'사운드',soundsDesc:'정답 / 오답 효과음',resetProfile:'프로필 초기화',resetProfileDesc:'로컬 XP, 통계 및 업적 삭제',reset:'초기화',resetConfirm:'로컬 프로필(XP, 통계, 업적)을 초기화할까요? 되돌릴 수 없습니다.',warning:'경고',firstWarning:'탭 전환이 감지되었습니다! 첫 번째 경고입니다. 다시 전환하면 점수가 무효 처리됩니다.',understood:'확인 — 계속하기',scoreVoided:'점수 무효',finalCheat:'탭 전환이 다시 감지되었습니다. 점수는 제출되지 않습니다. 게임을 종료합니다.',seeResults:'결과 보기',ach:{first_win:['첫 승리','첫 퀴즈 완료'],perfect_round:['퍼펙트 라운드','20문제 모두 정답'],gold_easy:['EASY MASTER','EASY에서 2,000+ 점수'],gold_normal:['NORMAL ELITE','NORMAL에서 5,000+ 점수'],gold_hard:['HARD HITTER','HARD에서 10,000+ 점수'],gold_hc:['HUMAN CALCULATOR','HC에서 10,000+ 점수'],xp_10k:['마인드 마라톤','총 10,000 XP 달성'],streak_30:['아이언 스트릭','30일 연속 도전'],history_10:['꾸준함','10게임 플레이'],all_ops:['폴리글롯','5가지 연산 모두 플레이'],speedster:['스피드스터','한 게임에서 30+ CPM']}}
+};
+function t(k,...a){const d=L[currentLang]||L.en,v=d[k]??L.en[k]??k;return typeof v==='function'?v(...a):v;}
+function st(s,k){const e=document.querySelector(s);if(e)e.textContent=t(k);}
+function applyLanguage(l){currentLang=L[l]?l:'en';document.documentElement.lang=currentLang;document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active',b.dataset.lang===currentLang));document.querySelectorAll('[data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));
+  st('.op-card[data-op="multiplication"] .op-label','opMultiply');st('.op-card[data-op="addition"] .op-label','opAdd');st('.op-card[data-op="subtraction"] .op-label','opSubtract');st('.op-card[data-op="division"] .op-label','opDivide');st('.op-card[data-op="mixed"] .op-label','opMixed');
+  st('.diff-card[data-diff="easy"] .diff-name','easy');st('.diff-card[data-diff="normal"] .diff-name','normal');st('.diff-card[data-diff="hard"] .diff-name','hard');st('.diff-card[data-diff="human_calculator"] .diff-name','humanCalculator');st('.diff-card[data-diff="easy"] .diff-badge','easyBadge');st('.diff-card[data-diff="normal"] .diff-badge','normalBadge');st('.diff-card[data-diff="hard"] .diff-badge','hardBadge');st('.diff-card[data-diff="human_calculator"] .diff-badge','hcBadge');st('.diff-card[data-diff="easy"] .diff-desc','easyDesc');st('.diff-card[data-diff="normal"] .diff-desc','normalDesc');st('.diff-card[data-diff="hard"] .diff-desc','hardDesc');st('.diff-card[data-diff="human_calculator"] .diff-desc','hcDesc');
+  const tabs=document.querySelectorAll('.tab-btn');['easy','normal','hard','humanCalculator'].forEach((k,i)=>{if(tabs[i])tabs[i].textContent=t(k)});const g=document.getElementById('diff-greeting');if(g)g.textContent=state.username?t('ready',state.username):t('readyPlayer');renderAchievements();renderLeaderboard(state.activeTab);renderProfile();}
+renderAchievements=function(){const grid=document.getElementById('ach-grid'),count=document.getElementById('ach-count');if(!grid||!profile)return;grid.innerHTML=ACHIEVEMENTS.map(a=>{const x=L[currentLang].ach?.[a.id]||L.en.ach[a.id],u=profile.achievements.includes(a.id);return `<div class="ach-item ${u?'unlocked':''}" title="${escHtml(x[0])} — ${escHtml(x[1])}"><span class="ach-icon">${a.icon}</span><span class="ach-name">${escHtml(x[0])}</span><span class="ach-desc">${escHtml(x[1])}</span></div>`}).join('');if(count)count.textContent=profile.achievements.length;};
+renderLeaderboard=function(tab){const list=document.getElementById('leaderboard-list'),entries=state.leaderboard[tab]||[];if(!list)return;if(!entries.length){list.innerHTML=`<div class="lb-empty">${t('noScores')}</div>`;return;}list.innerHTML=entries.map((e,i)=>`<div class="lb-row"><div class="lb-rank">${i+1}</div><div class="lb-name">${escHtml(e.username)}</div><div class="lb-stats">${e.correct}/20</div><div class="lb-score">${e.score.toLocaleString()}</div></div>`).join('');};
+showCheatWarning=function(isFinal){const o=document.getElementById('cheat-overlay'),title=document.getElementById('cheat-title'),msg=document.getElementById('cheat-msg'),btn=document.getElementById('cheat-continue-btn');if(isFinal){title.textContent=t('scoreVoided');msg.textContent=t('finalCheat');btn.textContent=t('seeResults');btn.onclick=()=>{o.classList.remove('show');showResults()};}else{title.textContent=t('warning');msg.textContent=t('firstWarning');btn.textContent=t('understood');btn.onclick=()=>o.classList.remove('show')}o.classList.add('show')};
+async function detectNetworkLanguage(){try{const r=await fetch('/api/locale',{cache:'no-store'});if(r.ok){const d=await r.json();if(L[d.language])return d.language}}catch(e){}const n=(navigator.language||'en').toLowerCase();return n.startsWith('id')?'id':n.startsWith('ja')?'ja':n.startsWith('ko')?'ko':'en'}
+async function initLanguage(){const saved=localStorage.getItem(LANG_KEY);if(saved&&L[saved]){applyLanguage(saved);return}applyLanguage('en');applyLanguage(await detectNetworkLanguage())}
+document.addEventListener('click',e=>{const b=e.target.closest('.lang-btn');if(!b)return;localStorage.setItem(LANG_KEY,b.dataset.lang);applyLanguage(b.dataset.lang)});
+initLanguage();
+
 </script>
 </body>
 </html>
