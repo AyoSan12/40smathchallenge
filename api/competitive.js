@@ -25,10 +25,15 @@ function json(status, body) {
 }
 
 function env() {
+  const p = typeof process !== 'undefined' && process.env ? process.env : {};
+  const g = globalThis.__env__ || {};
   return {
-    url: (typeof process !== 'undefined' && process.env?.UPSTASH_REDIS_REST_URL) || globalThis.__env__?.UPSTASH_REDIS_REST_URL,
-    token: (typeof process !== 'undefined' && process.env?.UPSTASH_REDIS_REST_TOKEN) || globalThis.__env__?.UPSTASH_REDIS_REST_TOKEN,
-    secret: (typeof process !== 'undefined' && process.env?.SESSION_SECRET) || globalThis.__env__?.SESSION_SECRET,
+    // Support both the newer explicit Upstash names and the existing Vercel KV
+    // REST aliases already present on this project. Never fall back to the
+    // read-only token because competitive mode must write queue/match/profile state.
+    url: p.UPSTASH_REDIS_REST_URL || g.UPSTASH_REDIS_REST_URL || p.KV_REST_API_URL || g.KV_REST_API_URL,
+    token: p.UPSTASH_REDIS_REST_TOKEN || g.UPSTASH_REDIS_REST_TOKEN || p.KV_REST_API_TOKEN || g.KV_REST_API_TOKEN,
+    secret: p.SESSION_SECRET || g.SESSION_SECRET,
   };
 }
 
