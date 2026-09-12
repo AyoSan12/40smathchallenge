@@ -74,7 +74,7 @@
       .comp-mode-btn:active{transform:scale(.985)} .comp-mode-btn:hover{border-color:var(--accent2);box-shadow:0 8px 30px rgba(0,0,0,.2)}
       .comp-mode-btn strong{display:block;font:800 20px 'Plus Jakarta Sans',sans-serif;letter-spacing:1px}.comp-mode-btn span{display:block;margin-top:5px;font:11px 'Space Grotesk',sans-serif;color:var(--muted);line-height:1.5}
       #screen-competitive{padding:16px;justify-content:flex-start;gap:0;overflow-y:auto}
-      .comp-shell{width:100%;max-width:760px;margin:0 auto;padding:8px 0 40px}
+      .comp-shell{width:100%;max-width:620px;margin:0 auto;padding:8px 0 40px}
       .comp-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0 16px}
       .comp-title{font:800 clamp(22px,7vw,34px) 'Plus Jakarta Sans',sans-serif;letter-spacing:1px}.comp-kicker{font:700 9px 'Space Grotesk',sans-serif;color:var(--muted);letter-spacing:2px;margin-top:3px}
       .comp-icon-btn{min-width:42px;height:42px;border:1px solid var(--border);background:var(--card);color:var(--muted);border-radius:10px;cursor:pointer;font-size:16px;touch-action:manipulation}
@@ -131,7 +131,7 @@
   function playerId(){
     let id=localStorage.getItem(PLAYER_KEY); if(!id){id=(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2));localStorage.setItem(PLAYER_KEY,id)} return id;
   }
-  let profile=null; let match=null; let poll=null; let qBusy=false;
+  let profile=null; let match=null; let poll=null; let qBusy=false; let waitTimer=null;
 
   async function api(action,payload={}){
     const res=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...payload})});
@@ -181,20 +181,19 @@
     const style=document.createElement('style');style.textContent='@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}';document.head.appendChild(style);
     document.getElementById('comp-cancel').onclick=async()=>{await api('leave',{playerToken:token}).catch(()=>{});stopPolling();showCompetitiveHome()};
     const started=Date.now();
-    poll=setInterval(async()=>{try{const d=await api('join',{playerToken:token});document.getElementById('comp-wait')?.replaceChildren(document.createTextNode(((Date.now()-started)/1000).toFixed(1)+'s'));if(d.status==='matched'){stopPolling();openMatch(d.match)}}catch(e){stopPolling();showToast(e.message,4000);showCompetitiveHome()}},900);
-    try{const d=await api('join',{playerToken:token});if(d.status==='matched'){stopPolling();openMatch(d.match)}}catch(e){stopPolling();showToast(e.message,4000);showCompetitiveHome()}
+    waitTimer=setInterval(()=>{const el=document.getElementById('comp-wait');if(!el)return;el.textContent=((Date.now()-started)/1000).toFixed(1)+'s'},100);
+    const checkQueue=async()=>{try{const d=await api('join',{playerToken:token});if(d.status==='matched'){stopPolling();openMatch(d.match)}}catch(e){stopPolling();showToast(e.message,4000);showCompetitiveHome()}};
+    poll=setInterval(checkQueue,900);
+    await checkQueue();
   }
-  function stopPolling(){if(poll){clearInterval(poll);poll=null}}
+  function stopPolling(){if(poll){clearInterval(poll);poll=null}if(waitTimer){clearInterval(waitTimer);waitTimer=null}}
 
-  function openMatch(m){injectStyle();ensureUi();match=m;document.getElementById('comp-match').style.display='block';document.getElementById('comp-result').style.display='none';document.getElementById('cm-me').textContent=m.me.username;document.getElementById('cm-opp').textContent=m.opponent.username;document.getElementById('cm-opp-rank').textContent=m.isBot?(m.botId==='legend'?text('legend'):text('bot')):text('player');document.getElementById('cm-vs').textContent=text('versus');document.getElementById('cm-qmeta').textContent=text('mode');document.getElementById('cm-bot-note').textContent=m.isBot?text('botNoRating'):'';setQuestion(m.question);runMatchLoop()}
+  function openMatch(m){injectStyle();ensureUi();match=m;document.getElementById('comp-match').style.display='block';document.getElementById('comp-result').style.display='none';document.getElementById('cm-me').textContent=m.me.username;document.getElementById('cm-opp').textContent=m.opponent.username;document.getElementById('cm-opp-rank').textContent=m.isBot?(m.botId==='legend'?text('legend'):text('bot')):text('player');document.getElementById('cm-vs').textContent=text('versus');document.getElementById('cm-qmeta').textContent=text('mode');setQuestion(m.question);runMatchLoop()}
   function setQuestion(q){const el=document.getElementById('cm-qtext'),inp=document.getElementById('cm-answer');if(!q){el.textContent='—';inp.value='';inp.disabled=true;return}el.textContent=`${q.text} = ?`;inp.value='';inp.disabled=false;setTimeout(()=>inp.focus(),60)}
 
   async function submitAnswer(){if(qBusy||!match)return;const inp=document.getElementById('cm-answer');const val=inp.value.trim();if(!/^\d{1,6}$/.test(val)){inp.focus();return}qBusy=true;document.getElementById('cm-submit').disabled=true;try{const d=await api('answer',{playerToken:localStorage.getItem(TOKEN_KEY),matchId:match.id,questionIndex:match.question?.index??match.me.q,answer:Number(val)});document.getElementById('cm-live').textContent=d.correct?'✓':'✗';document.getElementById('cm-live').className='comp-live '+(d.correct?'good':'bad');match.me={...match.me,...d.me};document.getElementById('cm-me-score').textContent=match.me.correct;document.getElementById('cm-me-wrong').textContent=match.me.wrong;match.question=d.nextQuestion;setQuestion(match.question);setTimeout(()=>{document.getElementById('cm-live').textContent='';document.getElementById('cm-live').className='comp-live'},350)}catch(e){showToast(e.message,2500)}finally{qBusy=false;document.getElementById('cm-submit').disabled=false}}
 
-  function runMatchLoop(){stopPolling();const iv=setInterval(async()=>{if(!match){clearInterval(iv);return}const now=Date.now();const rem=Math.max(0,(match.endAt-now)/1000);const sec=Math.ceil(rem);const tm=document.getElementById('cm-time');tm.textContent=sec;tm.classList.toggle('danger',sec<=8);document.getElementById('cm-timebar').style.width=Math.max(0,rem/40*100)+'%';try{const d=await api('status',{playerToken:localStorage.getItem(TOKEN_KEY),matchId:match.id});if(d.match)match=d.match;if(match.opponent){document.getElementById('cm-opp').textContent=match.opponent.username;}
-      const opp=match.opponent;document.getElementById('cm-me-score').textContent=match.me?.correct||0;document.getElementById('cm-me-wrong').textContent=match.me?.wrong||0;
-      if(d.status==='finished'){clearInterval(iv);closeMatch(d);}}
-    catch(e){if(rem<=0){clearInterval(iv);showToast(e.message,3000)}}},450)}
+  function runMatchLoop(){stopPolling();const iv=setInterval(async()=>{if(!match){clearInterval(iv);return}const now=Date.now();const rem=Math.max(0,(match.endAt-now)/1000);const sec=Math.ceil(rem);const tm=document.getElementById('cm-time');tm.textContent=sec;tm.classList.toggle('danger',sec<=8);document.getElementById('cm-timebar').style.width=Math.max(0,rem/40*100)+'%';try{const d=await api('status',{playerToken:localStorage.getItem(TOKEN_KEY),matchId:match.id});if(d.match)match=d.match;if(match.opponent){document.getElementById('cm-opp').textContent=match.opponent.username;}const opp=match.opponent;document.getElementById('cm-me-score').textContent=match.me?.correct||0;document.getElementById('cm-me-wrong').textContent=match.me?.wrong||0;if(d.status==='finished'){clearInterval(iv);closeMatch(d);}}catch(e){if(rem<=0){clearInterval(iv);showToast(e.message,3000)}}},450)}
 
   function closeMatch(d){document.getElementById('comp-match').style.display='none';document.getElementById('comp-result').style.display='flex';const r=d.result||{};const side=r.myResult||r.resultA||'draw';const win=side==='win',loss=side==='loss';const title=document.getElementById('cr-title');title.textContent=win?text('victory'):loss?text('defeat'):text('draw');title.className='comp-result-title '+(win?'win':loss?'loss':'draw');document.getElementById('cr-opponent').textContent=`${d.match?.opponent?.username||'OPPONENT'}${d.match?.isBot?' · AI':''}`;document.getElementById('cr-me').textContent=d.match?.me?.correct||0;document.getElementById('cr-opp').textContent=d.match?.opponent?.correct||0;const delta=r.myRating?.rrDelta||r.a?.rrDelta||0;document.getElementById('cr-rr').textContent=d.match?.isBot?(delta===0?'0 RR':`${delta>0?'+':''}${delta} RR`):`${delta>0?'+':''}${delta} RR`;const note=d.match?.isBot?(d.match?.botId==='legend'?text('legendary'):text('botNoRating')):(r.a?.after?.rankIndex!==r.a?.before?.rankIndex?(r.a.after.rankIndex>r.a.before.rankIndex?text('rankUp'):text('derank')):'');document.getElementById('cr-note').textContent=note||'';match=null}
 
