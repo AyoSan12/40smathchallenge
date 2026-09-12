@@ -25,15 +25,10 @@ function json(status, body) {
 }
 
 function env() {
-  const p = typeof process !== 'undefined' && process.env ? process.env : {};
-  const g = globalThis.__env__ || {};
   return {
-    // Support both the newer explicit Upstash names and the existing Vercel KV
-    // REST aliases already present on this project. Never fall back to the
-    // read-only token because competitive mode must write queue/match/profile state.
-    url: p.UPSTASH_REDIS_REST_URL || g.UPSTASH_REDIS_REST_URL || p.KV_REST_API_URL || g.KV_REST_API_URL,
-    token: p.UPSTASH_REDIS_REST_TOKEN || g.UPSTASH_REDIS_REST_TOKEN || p.KV_REST_API_TOKEN || g.KV_REST_API_TOKEN,
-    secret: p.SESSION_SECRET || g.SESSION_SECRET,
+    url: (typeof process !== 'undefined' && process.env?.UPSTASH_REDIS_REST_URL) || (typeof process !== 'undefined' && process.env?.KV_REST_API_URL) || globalThis.__env__?.UPSTASH_REDIS_REST_URL || globalThis.__env__?.KV_REST_API_URL,
+    token: (typeof process !== 'undefined' && process.env?.UPSTASH_REDIS_REST_TOKEN) || (typeof process !== 'undefined' && process.env?.KV_REST_API_TOKEN) || globalThis.__env__?.UPSTASH_REDIS_REST_TOKEN || globalThis.__env__?.KV_REST_API_TOKEN,
+    secret: (typeof process !== 'undefined' && process.env?.SESSION_SECRET) || globalThis.__env__?.SESSION_SECRET,
   };
 }
 
@@ -297,10 +292,20 @@ async function maybeHumanPair(player) {
 async function queuePlayer(player) {
   const current = await redis('get', [`comp:player-match:${player.playerId}`]);
   if (current) { const match = await loadMatch(current); if (match && match.status !== 'finished') return match; }
-  const now = Date.now();
-  await redis('set', [`comp:queue-player:${player.playerId}`, JSON.stringify({ ...player, joinedAt:now }), 'ex', 60]);
+
+  const existingRaw = await redis('get', [`comp:queue-player:${player.playerId}`]);
+  let queued = existingRaw ? JSON.parse(existingRaw) : null;
+  if (!queued) {
+    queued = { ...player, joinedAt:Date.now() };
+    await redis('set', [`comp:queue-player:${player.playerId}`, JSON.stringify(queued), 'ex', 60]);
+  } else {
+    queued.username = player.username;
+    queued.mmr = player.mmr;
+    await redis('set', [`comp:queue-player:${player.playerId}`, JSON.stringify(queued), 'ex', 60]);
+  }
+
   await redis('zadd', [`comp:queue:${SEASON}`, player.mmr, player.playerId]);
-  const paired = await maybeHumanPair(player);
+  const paired = await maybeHumanPair({ ...player, joinedAt: queued.joinedAt });
   if (paired) return paired;
   return null;
 }
