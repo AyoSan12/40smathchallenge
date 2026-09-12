@@ -1,4 +1,5 @@
 {
+  "buildCommand": "node scripts/center-language-switcher.mjs",
   "crons": [
     {
       "path": "/api/weekly-reset",
