@@ -292,7 +292,6 @@ async function maybeHumanPair(player) {
 async function queuePlayer(player) {
   const current = await redis('get', [`comp:player-match:${player.playerId}`]);
   if (current) { const match = await loadMatch(current); if (match && match.status !== 'finished') return match; }
-
   const existingRaw = await redis('get', [`comp:queue-player:${player.playerId}`]);
   let queued = existingRaw ? JSON.parse(existingRaw) : null;
   if (!queued) {
@@ -303,7 +302,6 @@ async function queuePlayer(player) {
     queued.mmr = player.mmr;
     await redis('set', [`comp:queue-player:${player.playerId}`, JSON.stringify(queued), 'ex', 60]);
   }
-
   await redis('zadd', [`comp:queue:${SEASON}`, player.mmr, player.playerId]);
   const paired = await maybeHumanPair({ ...player, joinedAt: queued.joinedAt });
   if (paired) return paired;
