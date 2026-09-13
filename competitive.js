@@ -45,8 +45,8 @@
     }
   };
 
-  const ranks = ['Scalar','Integer','Prime','Vector','Matrix','Euler','Gauss','Infinity'];
-  const rankColor = i => ['#8a8aa8','#72a0ff','#b26cff','#40e0f0','#f0e040','#40f070','#f09040','#f04070'][Math.min(7, Math.max(0, Math.floor(Math.max(0,i)/3)))];
+  const ranks = ['Rookie','Bronze','Silver','Gold','Platinum','Diamond','Master','Grandmaster','Mathematician'];
+  const rankColor = i => ['#8a8aa8','#a66a3f','#c0c0c0','#f0d84a','#40e0d0','#5a8cff','#b06cff','#f06ca8','#ff8a40'][Math.min(8, Math.max(0, Math.floor(Math.max(0,i)/3)))];
   const text = k => {
     const lang = (typeof currentLang !== 'undefined' && copy[currentLang]) ? currentLang : 'en';
     return copy[lang][k] || copy.en[k] || k;
@@ -56,7 +56,7 @@
 
   function rankLabel(p) {
     if (!p || Number(p.rankIndex) < 0) return text('placement');
-    if (Number(p.rankIndex) >= 21) return 'Infinity';
+    if (Number(p.rankIndex) >= 24) return 'Mathematician';
     return `${ranks[Math.floor(p.rankIndex/3)]} ${['III','II','I'][p.rankIndex%3]}`;
   }
 
@@ -173,7 +173,7 @@
 
   async function renderHistory(){const sub=document.getElementById('comp-subview');if(!sub)return;sub.innerHTML=`<h3>${esc(text('history'))}</h3><div class="comp-info">Loading...</div>`;try{const d=await api('history',{playerToken:localStorage.getItem(TOKEN_KEY)});sub.innerHTML=`<h3>${esc(text('history'))}</h3><div class="comp-rank-list">${d.rows.length?d.rows.map(r=>`<div class="comp-history-row"><div class="comp-pos" style="color:${r.result==='win'?'var(--green)':r.result==='loss'?'var(--accent3)':'var(--accent2)'}">${r.result==='win'?'W':r.result==='loss'?'L':'D'}</div><div class="comp-grow"><b>${esc(r.opponent)}</b><div class="comp-muted">${esc(r.type||'ranked')} · ${esc(r.rank||'Placement')}</div></div><b style="color:${r.rrDelta>0?'var(--green)':r.rrDelta<0?'var(--accent3)':'var(--muted)'}">${r.rrDelta>0?'+':''}${r.rrDelta||0} RR</b></div>`).join(''):`<div class="comp-info">${esc(text('noHistory'))}</div>`}</div>`}catch(e){sub.innerHTML=`<h3>${esc(text('history'))}</h3><div class="comp-info">${esc(e.message)}</div>`}}
 
-  function renderRankInfo(){const sub=document.getElementById('comp-subview');if(!sub)return;sub.innerHTML=`<h3>${esc(text('rankedRules'))}</h3><div class="comp-info">${esc(text('rankedDesc'))}</div><div class="comp-rank-list" style="margin-top:10px">${ranks.map((r,i)=>`<div class="comp-rank-row"><span class="comp-rank-dot" style="background:${rankColor(i*3)}"></span><div class="comp-grow"><b>${r}</b><div class="comp-muted">${i===7?'∞ RR':'III · II · I'}</div></div></div>`).join('')}</div>`}
+  function renderRankInfo(){const sub=document.getElementById('comp-subview');if(!sub)return;sub.innerHTML=`<h3>${esc(text('rankedRules'))}</h3><div class="comp-info">${esc(text('rankedDesc'))}</div><div class="comp-rank-list" style="margin-top:10px">${ranks.map((r,i)=>`<div class="comp-rank-row"><span class="comp-rank-dot" style="background:${rankColor(i*3)}"></span><div class="comp-grow"><b>${r}</b><div class="comp-muted">${i===8?'TOP RANK':'III · II · I'}</div></div></div>`).join('')}</div>`}
 
   async function startMatchmaking(){
     if(poll)return; const token=localStorage.getItem(TOKEN_KEY); if(!token){showToast('Competitive profile unavailable',3500);return}
