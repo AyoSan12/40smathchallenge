@@ -11,8 +11,8 @@ const MODE = 'hard-40-mixed';
 const DURATION_MS = 40_000;
 const COUNTDOWN_MS = 3_000;
 const MIN_ANSWER_INTERVAL_MS = 320;
-const RANKS = ['Scalar', 'Integer', 'Prime', 'Vector', 'Matrix', 'Euler', 'Gauss', 'Infinity'];
-const COLORS = ['#8a8aa8','#72a0ff','#b26cff','#40e0f0','#f0e040','#40f070','#f09040','#f04070'];
+const RANKS = ['Rookie', 'Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Master', 'Grandmaster', 'Mathematician'];
+const COLORS = ['#8a8aa8','#a66a3f','#c0c0c0','#f0d84a','#40e0d0','#5a8cff','#b06cff','#f06ca8','#ff8a40'];
 const BOT_NAMES = [
   'Aoi','Ren','Yuki','Haru','Sora','Mio','Rin','Kaito','Hina','Kota','Mei','Riku','Nana','Suzu','Yuna','Rei','Kai','Noa','Mika','Kazu',
   'Ayaka','Emi','Hinata','Itsuki','Jun','Kei','Maki','Nagi','Rena','Shota','Toma','Yui','Yuya','Akari','Arata','Chihiro','Daiki','Ema','Fumi','Hikari',
@@ -69,15 +69,15 @@ async function verifyToken(token, secret) {
 
 function rankName(rankIndex) {
   if (rankIndex < 0) return 'Placement';
-  if (rankIndex >= 21) return 'Infinity';
+  if (rankIndex >= 24) return 'Mathematician';
   const r = RANKS[Math.floor(rankIndex / 3)];
   const tier = ['III','II','I'][rankIndex % 3];
   return `${r} ${tier}`;
 }
 
 function rankIndexFromMmr(mmr) {
-  if (mmr >= 2200) return 21;
-  return Math.max(0, Math.min(20, Math.floor((mmr - 800) / 100)));
+  if (mmr >= 2500) return 24;
+  return Math.max(0, Math.min(23, Math.floor((mmr - 700) / 75)));
 }
 
 function rankColor(rankIndex) {
@@ -165,7 +165,7 @@ function applyRating(profile, result, opponentMmr) {
 
   if (profile.placementGames >= 5 && profile.rankIndex < 0) {
     profile.rankIndex = rankIndexFromMmr(profile.mmr);
-    const local = Math.max(0, profile.mmr - (800 + profile.rankIndex * 100));
+    const local = Math.max(0, profile.mmr - (700 + profile.rankIndex * 75));
     profile.rr = clamp(Math.round(local * 0.5 + 25), 0, 99);
     profile.peakRankIndex = profile.rankIndex;
   } else if (profile.rankIndex >= 0) {
@@ -175,7 +175,7 @@ function applyRating(profile, result, opponentMmr) {
     const deltaRr = result === 'win' ? clamp(base + swing, 10, 30) : result === 'loss' ? clamp(base + swing, -30, -10) : 0;
     profile.rr += deltaRr;
     if (profile.rr >= 100) {
-      while (profile.rr >= 100 && profile.rankIndex < 21) { profile.rr -= 100; profile.rankIndex++; }
+      while (profile.rr >= 100 && profile.rankIndex < 24) { profile.rr -= 100; profile.rankIndex++; }
       profile.shields = 2;
     }
     if (profile.rr < 0) {
