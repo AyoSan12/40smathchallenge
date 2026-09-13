@@ -12,67 +12,9 @@ jobs:
     if: "!contains(github.event.head_commit.message, '[skip-rank-names]')"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/github-script@v7
+      - uses: actions/checkout@v4
         with:
-          script: |
-            const { owner, repo } = context.repo;
-            const edits = {
-              'api/competitive.js': [
-                ["const RANKS = ['Scalar', 'Integer', 'Prime', 'Vector', 'Matrix', 'Euler', 'Gauss', 'Infinity'];", "const RANKS = ['Rookie', 'Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Master', 'Grandmaster', 'Mathematician'];"],
-                ["const COLORS = ['#8a8aa8','#72a0ff','#b26cff','#40e0f0','#f0e040','#40f070','#f09040','#f04070'];", "const COLORS = ['#8a8aa8','#a66a3f','#c0c0c0','#f0d84a','#40e0d0','#5a8cff','#b06cff','#f06ca8','#ff8a40'];"],
-                ["const local = Math.max(0, profile.mmr - (800 + profile.rankIndex * 100));", "const local = Math.max(0, profile.mmr - (700 + profile.rankIndex * 75));"],
-                ["while (profile.rr >= 100 && profile.rankIndex < 21)", "while (profile.rr >= 100 && profile.rankIndex < 24)"],
-              ],
-              'competitive.js': [
-                ["const ranks = ['Scalar','Integer','Prime','Vector','Matrix','Euler','Gauss','Infinity'];", "const ranks = ['Rookie','Bronze','Silver','Gold','Platinum','Diamond','Master','Grandmaster','Mathematician'];"],
-                ["const rankColor = i => ['#8a8aa8','#72a0ff','#b26cff','#40e0f0','#f0e040','#40f070','#f09040','#f04070'][Math.min(7, Math.max(0, Math.floor(Math.max(0,i)/3)))];", "const rankColor = i => ['#8a8aa8','#a66a3f','#c0c0c0','#f0d84a','#40e0d0','#5a8cff','#b06cff','#f06ca8','#ff8a40'][Math.min(8, Math.max(0, Math.floor(Math.max(0,i)/3)))];"],
-                ["if (Number(p.rankIndex) >= 21) return 'Infinity';", "if (Number(p.rankIndex) >= 24) return 'Mathematician';"],
-                ["${i===7?'∞ RR':'III · II · I'}", "${i===8?'TOP RANK':'III · II · I'}"],
-              ]
-            };
+          fetch-depth: 0
 
-            function apply(text, list) {
-              let next = text;
-              for (const [oldText, newText] of list) {
-                next = next.replaceAll(oldText, newText);
-              }
-              if (list === edits['api/competitive.js']) {
-                next = next.replace(/function rankName\(rankIndex\) \{[\s\S]*?\n\}\n\nfunction rankIndexFromMmr\(mmr\) \{[\s\S]*?\n\}/,
-`function rankName(rankIndex) {\n  if (rankIndex < 0) return 'Placement';\n  if (rankIndex >= 24) return 'Mathematician';\n  const r = RANKS[Math.floor(rankIndex / 3)];\n  const tier = ['III','II','I'][rankIndex % 3];\n  return \`${r} \${tier}\`;\n}\n\nfunction rankIndexFromMmr(mmr) {\n  if (mmr >= 2500) return 24;\n  return Math.max(0, Math.min(23, Math.floor((mmr - 700) / 75)));\n}`);
-              }
-              if (list === edits['competitive.js']) {
-                next = next.replace(/if \(Number\(p\.rankIndex\) >= 21\) return 'Infinity';/, "if (Number(p.rankIndex) >= 24) return 'Mathematician';");
-                next = next.replace(/\$\{i===7\?'∞ RR':'III · II · I'\}/, "${i===8?'TOP RANK':'III · II · I'}");
-              }
-              return next;
-            }
-
-            for (const path of ['api/competitive.js', 'competitive.js']) {
-              const r = await github.rest.repos.getContent({ owner, repo, path, ref: 'main' });
-              const text = Buffer.from(r.data.content, 'base64').toString('utf8');
-              const next = apply(text, edits[path]);
-              if (next === text) { core.info(`${path}: no changes needed`); continue; }
-              await github.rest.repos.createOrUpdateFileContents({
-                owner, repo, path, branch: 'main',
-                message: 'Rombak competitive rank system [skip-rank-names]',
-                content: Buffer.from(next, 'utf8').toString('base64'),
-                sha: r.data.sha,
-              });
-              core.info(`${path}: updated`);
-            }
-
-      - name: Validate requested ranks
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { owner, repo } = context.repo;
-            const required = ['Rookie','Bronze','Silver','Gold','Platinum','Diamond','Master','Grandmaster','Mathematician'];
-            for (const path of ['api/competitive.js','competitive.js']) {
-              const r = await github.rest.repos.getContent({ owner, repo, path, ref: 'main' });
-              const text = Buffer.from(r.data.content, 'base64').toString('utf8');
-              const missing = required.filter(x => !text.includes(x));
-              if (missing.length) throw new Error(`${path}: missing ${missing.join(', ')}`);
-              for (const old of ['Scalar','Integer','Prime','Vector','Matrix','Euler','Gauss','Infinity']) {
-                if (text.includes(old)) throw new Error(`${path}: old name remains: ${old}`);
-              }
-            }
+      - name: Run deterministic migration
+        run: python scripts/migrate_rank_names.py
