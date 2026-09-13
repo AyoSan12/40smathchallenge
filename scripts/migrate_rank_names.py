@@ -3,6 +3,10 @@ import re
 import subprocess
 
 
+NEW_RANKS = ['Rookie', 'Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Master', 'Grandmaster', 'Mathematician']
+OLD_RANKS = ['Scalar', 'Integer', 'Prime', 'Vector', 'Matrix', 'Euler', 'Gauss', 'Infinity']
+
+
 def edit_api(path: Path) -> str:
     s = path.read_text(encoding='utf-8')
     s = s.replace(
@@ -73,9 +77,13 @@ subprocess.run(['node', '--check', str(client)], check=True)
 
 for p in (api, client):
     t = p.read_text(encoding='utf-8')
-    for old in ['Scalar','Integer','Prime','Vector','Matrix','Euler','Gauss','Infinity']:
-        if old in t:
-            raise SystemExit(f'{p}: old rank name remains: {old}')
+    rank_line = next((line for line in t.splitlines() if 'const RANKS' in line or 'const ranks' in line), '')
+    for old in OLD_RANKS:
+        if old in rank_line:
+            raise SystemExit(f'{p}: old rank remains in rank declaration: {old}')
+    for new in NEW_RANKS:
+        if new not in rank_line:
+            raise SystemExit(f'{p}: new rank missing from rank declaration: {new}')
 
 subprocess.run(['git', 'config', 'user.name', 'github-actions[bot]'], check=True)
 subprocess.run(['git', 'config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com'], check=True)
